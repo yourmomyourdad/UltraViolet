@@ -16,8 +16,26 @@ fi
 
 echo "[2/5] Building Ultraviolet..."
 cd Ultraviolet
+
 npm install
 npm run build
+
+cat > dist/uv.config.js <<'EOF'
+/* global Ultraviolet */
+
+self.__uv$config = {
+  prefix: "/service/",
+  encodeUrl: Ultraviolet.codec.xor.encode,
+  decodeUrl: Ultraviolet.codec.xor.decode,
+
+  handler: "/uv/uv.handler.js",
+  client: "/uv/uv.client.js",
+  bundle: "/uv/uv.bundle.js",
+  config: "/uv/uv.config.js",
+  sw: "/uv/uv.sw.js"
+};
+EOF
+
 cd ..
 
 echo "[3/5] Installing application dependencies..."
