@@ -67,6 +67,15 @@ const server = http.createServer((req, res) => {
     );
   }
 
+  if (pathname === "/service-worker.js") {
+  return sendFile(
+    res,
+    path.join(__dirname, "service-worker.js"),
+    {
+      "Service-Worker-Allowed": "/"
+    }
+  );
+}
   // UV files
   if (pathname.startsWith("/uv/")) {
     const requested = pathname.slice("/uv/".length);
