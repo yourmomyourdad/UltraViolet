@@ -296,12 +296,22 @@ async function initializeUV() {
 
     console.log("Registering UV service worker...");
 
-    const registration = await navigator.serviceWorker.register(
-      "/uv/sw.js",
-      {
-        scope: "/service/"
-      }
-    );
+    const registration =
+  await navigator.serviceWorker.register(
+    "/service-worker.js",
+    {
+      scope: "/service/"
+    }
+  );
+
+console.log("UV registration:", registration);
+
+await navigator.serviceWorker.ready;
+
+initialized = true;
+status.textContent = "Ready";
+
+console.log("Ultraviolet is ready!");
 
     console.log("UV registration:", registration);
     console.log("Active worker:", registration.active);
