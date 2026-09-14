@@ -272,265 +272,132 @@
   <script src="/uv/uv.config.js"></script>
 
 
-  <script type="module">
+<script type="module">
+  import { BareMuxConnection } from "/baremux/index.js";
 
-    const form =
-      document.getElementById("form");
+  const form = document.getElementById("form");
+  const input = document.getElementById("url");
+  const home = document.getElementById("home");
+  const browser = document.getElementById("browser");
+  const frame = document.getElementById("frame");
+  const status = document.getElementById("status");
 
-    const input =
-      document.getElementById("url");
+  let initialized = false;
 
-    const home =
-      document.getElementById("home");
+  async function initialize() {
+    try {
+      status.textContent = "Initializing...";
 
-    const browser =
-      document.getElementById("browser");
+      console.log("Creating BareMux connection...");
 
-    const frame =
-      document.getElementById("frame");
+      const connection =
+        new BareMuxConnection("/baremux/worker.js");
 
-    const status =
-      document.getElementById("status");
+      const wisp =
+        `${location.protocol === "https:" ? "wss:" : "ws:"}` +
+        `//${location.host}/wisp/`;
 
+      console.log("Wisp endpoint:", wisp);
 
-    let initialized = false;
+      console.log("Setting Epoxy transport...");
 
-
-    async function initialize() {
-
-      try {
-
-        status.textContent =
-          "Initializing...";
-
-        console.log(
-          "Ultraviolet initialization starting..."
-        );
-
-
-        /*
-         * Load BareMux as a module.
-         */
-        const {
-          BareMuxConnection
-        } = await import(
-          "/baremux/index.mjs"
-        );
-
-
-        console.log(
-          "BareMux loaded."
-        );
-
-
-        const connection =
-          new BareMuxConnection(
-            "/baremux/worker.js"
-          );
-
-
-        /*
-         * Wisp uses WebSockets.
-         *
-         * Cloudflare gives us HTTPS,
-         * so use WSS.
-         */
-        const wisp =
-          `${location.protocol === "https:" ? "wss:" : "ws:"}` +
-          `//${location.host}/`;
-
-
-        console.log(
-          "Wisp endpoint:",
-          wisp
-        );
-
-
-        /*
-         * Connect BareMux to Epoxy.
-         */
-        await connection.setTransport(
-          "/epoxy/index.mjs",
-          [
-            {
-              wisp
-            }
-          ]
-        );
-
-
-        console.log(
-          "Epoxy transport initialized."
-        );
-
-
-        /*
-         * Register UV.
-         */
-        const registration =
-          await navigator.serviceWorker.register(
-            "/uv/sw.js",
-            {
-              scope: "/service/"
-            }
-          );
-
-
-        console.log(
-          "UV registration:",
-          registration
-        );
-
-
-        if (!registration.active) {
-          await navigator.serviceWorker.ready;
-        }
-
-
-        initialized = true;
-
-        status.textContent =
-          "Ready";
-
-
-        console.log(
-          "Ultraviolet initialized successfully."
-        );
-
-      } catch (error) {
-
-        console.error(
-          "Ultraviolet initialization failed:",
-          error
-        );
-
-
-        status.textContent =
-          "Initialization failed — open Eruda.";
-      }
-
-    }
-
-
-    function normalize(value) {
-
-      value =
-        value.trim();
-
-
-      if (!value) {
-        return null;
-      }
-
-
-      if (
-        /^https?:\/\//i.test(value)
-      ) {
-        return value;
-      }
-
-
-      if (
-        /^[a-z0-9.-]+\.[a-z]{2,}/i.test(value)
-      ) {
-        return "https://" + value;
-      }
-
-
-      return (
-        "https://www.google.com/search?q=" +
-        encodeURIComponent(value)
+      await connection.setTransport(
+        "/epoxy/index.mjs",
+        [{ wisp }]
       );
 
-    }
+      console.log("Epoxy transport initialized.");
 
+      console.log("Registering UV service worker...");
 
-    function navigate(value) {
-
-      if (!initialized) {
-
-        status.textContent =
-          "Ultraviolet is still initializing...";
-
-        return;
-      }
-
-
-      const url =
-        normalize(value);
-
-
-      if (!url) {
-        return;
-      }
-
-
-      const proxied =
-        __uv$config.prefix +
-        __uv$config.encodeUrl(url);
-
-
-      console.log(
-        "Destination:",
-        url
-      );
-
-
-      console.log(
-        "Proxy:",
-        proxied
-      );
-
-
-      home.style.display =
-        "none";
-
-
-      browser.style.display =
-        "block";
-
-
-      frame.src =
-        proxied;
-
-    }
-
-
-    form.addEventListener(
-      "submit",
-      event => {
-
-        event.preventDefault();
-
-        navigate(
-          input.value
-        );
-
-      }
-    );
-
-
-    document
-      .querySelectorAll(".quick")
-      .forEach(button => {
-
-        button.addEventListener(
-          "click",
-          () => {
-
-            navigate(
-              button.dataset.url
-            );
-
+      const registration =
+        await navigator.serviceWorker.register(
+          "/uv/sw.js",
+          {
+            scope: "/service/"
           }
         );
 
-      });
+      console.log("UV registration:", registration);
 
+      await navigator.serviceWorker.ready;
 
-    initialize();
+      initialized = true;
+      status.textContent = "Ready";
 
-  </script>
+      console.log("Ultraviolet initialized!");
+
+    } catch (error) {
+      console.error(
+        "Ultraviolet initialization failed:",
+        error
+      );
+
+      status.textContent =
+        "Initialization failed — open Eruda.";
+    }
+  }
+
+  function normalize(value) {
+    value = value.trim();
+
+    if (!value) {
+      return null;
+    }
+
+    if (/^https?:\/\//i.test(value)) {
+      return value;
+    }
+
+    if (/^[a-z0-9.-]+\.[a-z]{2,}/i.test(value)) {
+      return "https://" + value;
+    }
+
+    return (
+      "https://www.google.com/search?q=" +
+      encodeURIComponent(value)
+    );
+  }
+
+  function navigate(value) {
+    if (!initialized) {
+      status.textContent =
+        "Ultraviolet is still initializing...";
+      return;
+    }
+
+    const url = normalize(value);
+
+    if (!url) {
+      return;
+    }
+
+    const proxied =
+      __uv$config.prefix +
+      __uv$config.encodeUrl(url);
+
+    console.log("Destination:", url);
+    console.log("Proxy URL:", proxied);
+
+    home.style.display = "none";
+    browser.style.display = "block";
+
+    frame.src = proxied;
+  }
+
+  form.addEventListener("submit", event => {
+    event.preventDefault();
+    navigate(input.value);
+  });
+
+  document.querySelectorAll(".quick").forEach(button => {
+    button.addEventListener("click", () => {
+      navigate(button.dataset.url);
+    });
+  });
+
+  initialize();
+</script>
 
 </body>
 </html>
