@@ -21,12 +21,9 @@ const mime = {
   ".json": "application/json; charset=utf-8",
   ".map": "application/json; charset=utf-8",
   ".wasm": "application/wasm",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".svg": "image/svg+xml",
 };
 
-function serveFile(res, file) {
+function serveFile(res, file, extraHeaders = {}) {
   if (!fs.existsSync(file)) {
     res.writeHead(404);
     res.end("Not found");
@@ -37,6 +34,7 @@ function serveFile(res, file) {
 
   res.writeHead(200, {
     "Content-Type": mime[ext] || "application/octet-stream",
+    ...extraHeaders,
   });
 
   fs.createReadStream(file).pipe(res);
@@ -46,23 +44,39 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const pathname = decodeURIComponent(url.pathname);
 
-  // Your frontend
+  // Frontend
   if (pathname === "/" || pathname === "/index.html") {
-    return serveFile(res, path.join(__dirname, "index.html"));
+    return serveFile(
+      res,
+      path.join(__dirname, "index.html")
+    );
   }
 
-  // Ultraviolet build files
+  // Ultraviolet files
   if (pathname.startsWith("/uv/")) {
     const file = pathname.slice("/uv/".length);
 
-    // Prevent paths such as /uv/../../something
     if (file.includes("..")) {
       res.writeHead(403);
       res.end("Forbidden");
       return;
     }
 
-    return serveFile(res, path.join(UV_DIR, file));
+    const fullPath = path.join(UV_DIR, file);
+
+    // IMPORTANT:
+    // Allows /uv/sw.js to control /service/
+    if (file === "sw.js") {
+      return serveFile(
+        res,
+        fullPath,
+        {
+          "Service-Worker-Allowed": "/"
+        }
+      );
+    }
+
+    return serveFile(res, fullPath);
   }
 
   // BareMux
@@ -87,7 +101,7 @@ const server = http.createServer((req, res) => {
     );
   }
 
-  // Epoxy transport
+  // Epoxy
   if (pathname.startsWith("/epoxy/")) {
     const file = pathname.slice("/epoxy/".length);
 
@@ -113,7 +127,7 @@ const server = http.createServer((req, res) => {
   res.end("Not found");
 });
 
-// Wisp WebSocket endpoint
+// Wisp WebSocket
 server.on("upgrade", (req, socket, head) => {
   wisp.routeRequest(req, socket, head);
 });
