@@ -51,7 +51,7 @@ import { BareMuxConnection } from "@mercuryworkshop/bare-mux";
 window.BareMuxConnection = BareMuxConnection;
 EOF
 
-node Ultraviolet/node_modules/esbuild/bin/esbuild \
+Ultraviolet/node_modules/esbuild/bin/esbuild \
     baremux-entry.js \
     --bundle \
     --format=iife \
