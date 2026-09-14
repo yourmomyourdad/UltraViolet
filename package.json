@@ -1,5 +1,5 @@
 {
-  "name": "ultraviolet-wisp-server",
+  "name": "uv-wisp-server",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -7,6 +7,6 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "@mercuryworkshop/wisp-server-node": "latest"
+    "@mercuryworkshop/wisp-js": "^0.5.0"
   }
 }
