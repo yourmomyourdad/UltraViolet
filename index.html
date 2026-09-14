@@ -1,117 +1,395 @@
-<script src="/uv/uv.bundle.js"></script>
-<script src="/uv/uv.config.js"></script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<script type="module">
-  import { BareMuxConnection } from "/baremux/index.mjs";
+  <title>Ultraviolet</title>
 
-  const form = document.getElementById("form");
-  const input = document.getElementById("url");
-  const home = document.getElementById("home");
-  const browser = document.getElementById("browser");
-  const frame = document.getElementById("frame");
-  const status = document.getElementById("status");
+  <style>
+    * {
+      box-sizing: border-box;
+    }
 
-  let initialized = false;
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+    }
 
-  async function initialize() {
-    try {
-      status.textContent = "Initializing...";
+    body {
+      font-family:
+        Inter,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
 
-      /*
-       * Tell BareMux where its worker lives.
-       */
-      const connection = new BareMuxConnection(
-        "/baremux/worker.js"
-      );
+      color: #f5f7ff;
 
-      /*
-       * Connect BareMux to Epoxy.
-       *
-       * /wisp/ is our WebSocket endpoint.
-       */
-      await connection.setTransport(
-        "/epoxy/index.mjs",
-        [
+      background:
+        radial-gradient(
+          circle at 50% 35%,
+          #252b4a 0%,
+          #15192b 35%,
+          #090b13 75%
+        );
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #home {
+      width: min(720px, calc(100% - 40px));
+      text-align: center;
+    }
+
+    .logo {
+      font-size: 64px;
+      font-weight: 800;
+      letter-spacing: -4px;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: #969db5;
+      font-size: 16px;
+      margin-bottom: 34px;
+    }
+
+    .search {
+      display: flex;
+      align-items: center;
+
+      height: 64px;
+      padding: 7px;
+
+      border-radius: 18px;
+
+      background: rgba(20, 23, 38, 0.85);
+
+      border: 1px solid rgba(255, 255, 255, 0.08);
+
+      box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.35),
+        inset 0 1px rgba(255, 255, 255, 0.03);
+    }
+
+    .search-icon {
+      width: 48px;
+      color: #777f9c;
+      font-size: 20px;
+    }
+
+    #url {
+      flex: 1;
+
+      height: 100%;
+
+      border: 0;
+      outline: 0;
+
+      background: transparent;
+
+      color: white;
+
+      font-size: 16px;
+    }
+
+    #url::placeholder {
+      color: #686f87;
+    }
+
+    #go {
+      height: 48px;
+      min-width: 80px;
+
+      border: 0;
+      border-radius: 13px;
+
+      background: #6874ff;
+
+      color: white;
+
+      font-weight: 600;
+      font-size: 14px;
+
+      cursor: pointer;
+    }
+
+    #go:hover {
+      background: #7883ff;
+    }
+
+    .quick-links {
+      margin-top: 22px;
+
+      display: flex;
+      justify-content: center;
+
+      gap: 9px;
+
+      flex-wrap: wrap;
+    }
+
+    .quick {
+      border: 1px solid rgba(255, 255, 255, 0.07);
+
+      background: rgba(255, 255, 255, 0.035);
+
+      color: #aeb5cb;
+
+      padding: 9px 14px;
+
+      border-radius: 10px;
+
+      cursor: pointer;
+    }
+
+    .quick:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: white;
+    }
+
+    #status {
+      margin-top: 25px;
+
+      min-height: 20px;
+
+      color: #686f87;
+
+      font-size: 13px;
+    }
+
+    #browser {
+      display: none;
+
+      position: fixed;
+
+      inset: 0;
+
+      background: white;
+    }
+
+    #frame {
+      width: 100%;
+      height: 100%;
+
+      border: 0;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="home">
+
+    <div class="logo">
+      ultraviolet
+    </div>
+
+    <div class="subtitle">
+      A fast, simple web gateway.
+    </div>
+
+    <form class="search" id="form">
+
+      <div class="search-icon">
+        ⌕
+      </div>
+
+      <input
+        id="url"
+        type="text"
+        placeholder="Search or enter a URL"
+        autocomplete="off"
+        spellcheck="false"
+      >
+
+      <button id="go" type="submit">
+        Go
+      </button>
+
+    </form>
+
+    <div class="quick-links">
+
+      <button
+        class="quick"
+        data-url="https://www.google.com"
+      >
+        Google
+      </button>
+
+      <button
+        class="quick"
+        data-url="https://www.youtube.com"
+      >
+        YouTube
+      </button>
+
+      <button
+        class="quick"
+        data-url="https://wikipedia.org"
+      >
+        Wikipedia
+      </button>
+
+    </div>
+
+    <div id="status">
+      Starting...
+    </div>
+
+  </div>
+
+  <div id="browser">
+    <iframe id="frame"></iframe>
+  </div>
+
+  <script src="/uv/uv.bundle.js"></script>
+  <script src="/uv/uv.config.js"></script>
+
+  <script>
+    const form = document.getElementById("form");
+    const input = document.getElementById("url");
+
+    const home = document.getElementById("home");
+    const browser = document.getElementById("browser");
+
+    const frame = document.getElementById("frame");
+
+    const status = document.getElementById("status");
+
+    let initialized = false;
+
+
+    async function registerUV() {
+
+      try {
+
+        status.textContent = "Initializing...";
+
+        await navigator.serviceWorker.register(
+          "/uv/uv.sw.js",
           {
-            wisp: `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/wisp/`
+            scope: "/service/"
           }
-        ]
+        );
+
+        initialized = true;
+
+        status.textContent = "Ready";
+
+        console.log("Ultraviolet initialized.");
+
+      } catch (error) {
+
+        console.error(
+          "Ultraviolet initialization failed:",
+          error
+        );
+
+        status.textContent =
+          "Ultraviolet failed to initialize.";
+
+      }
+
+    }
+
+
+    function normalize(value) {
+
+      value = value.trim();
+
+      if (!value) {
+        return null;
+      }
+
+      if (/^https?:\/\//i.test(value)) {
+        return value;
+      }
+
+      if (/^[a-z0-9.-]+\.[a-z]{2,}/i.test(value)) {
+        return "https://" + value;
+      }
+
+      return (
+        "https://www.google.com/search?q=" +
+        encodeURIComponent(value)
       );
 
-      /*
-       * Register the UV service worker.
-       */
-      await navigator.serviceWorker.register(
-        "/uv/uv.sw.js",
-        {
-          scope: "/service/"
-        }
-      );
-
-      initialized = true;
-      status.textContent = "Ready";
-      console.log("Ultraviolet initialized.");
-
-    } catch (error) {
-      console.error("Ultraviolet initialization failed:", error);
-      status.textContent = "Ultraviolet failed to initialize.";
-    }
-  }
-
-  function normalize(value) {
-    value = value.trim();
-
-    if (!value) {
-      return null;
     }
 
-    if (/^https?:\/\//i.test(value)) {
-      return value;
+
+    function navigate(value) {
+
+      if (!initialized) {
+
+        status.textContent =
+          "Ultraviolet is still initializing...";
+
+        return;
+
+      }
+
+      const url = normalize(value);
+
+      if (!url) {
+        return;
+      }
+
+      const proxied =
+        __uv$config.prefix +
+        __uv$config.encodeUrl(url);
+
+      console.log("Destination:", url);
+      console.log("Proxy:", proxied);
+
+      home.style.display = "none";
+
+      browser.style.display = "block";
+
+      frame.src = proxied;
+
     }
 
-    if (/^[a-z0-9.-]+\.[a-z]{2,}/i.test(value)) {
-      return "https://" + value;
-    }
 
-    return "https://www.google.com/search?q=" +
-      encodeURIComponent(value);
-  }
+    form.addEventListener(
+      "submit",
+      function(event) {
 
-  function navigate(value) {
-    if (!initialized) {
-      status.textContent = "Ultraviolet is still initializing...";
-      return;
-    }
+        event.preventDefault();
 
-    const url = normalize(value);
+        navigate(input.value);
 
-    if (!url) {
-      return;
-    }
+      }
+    );
 
-    const proxied =
-      __uv$config.prefix +
-      __uv$config.encodeUrl(url);
 
-    console.log("Destination:", url);
-    console.log("Proxy:", proxied);
+    document
+      .querySelectorAll(".quick")
+      .forEach(function(button) {
 
-    home.style.display = "none";
-    browser.style.display = "block";
+        button.addEventListener(
+          "click",
+          function() {
 
-    frame.src = proxied;
-  }
+            navigate(
+              button.dataset.url
+            );
 
-  form.addEventListener("submit", event => {
-    event.preventDefault();
-    navigate(input.value);
-  });
+          }
+        );
 
-  document.querySelectorAll(".quick").forEach(button => {
-    button.addEventListener("click", () => {
-      navigate(button.dataset.url);
-    });
-  });
+      });
 
-  initialize();
-</script>
+
+    registerUV();
+  </script>
+
+</body>
+</html>
