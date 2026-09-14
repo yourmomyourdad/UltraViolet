@@ -21,56 +21,50 @@ const NODE_MODULES = path.join(
   "node_modules"
 );
 
-const MIME_TYPES = {
+const MIME = {
   ".html": "text/html; charset=utf-8",
   ".js": "application/javascript; charset=utf-8",
   ".mjs": "application/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".json": "application/json; charset=utf-8",
   ".map": "application/json; charset=utf-8",
-  ".wasm": "application/wasm",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".svg": "image/svg+xml",
-  ".ico": "image/x-icon",
+  ".wasm": "application/wasm"
 };
 
-function sendFile(res, filePath, headers = {}) {
-  if (!fs.existsSync(filePath)) {
-    res.writeHead(404, {
-      "Content-Type": "text/plain; charset=utf-8",
-    });
-
-    res.end("File not found");
-    return;
-  }
-
-  const extension = path.extname(filePath);
-
-  res.writeHead(200, {
-    "Content-Type":
-      MIME_TYPES[extension] ||
-      "application/octet-stream",
-
-    ...headers,
-  });
-
-  fs.createReadStream(filePath).pipe(res);
-}
-
-function safePath(base, requested) {
-  const full = path.resolve(base, requested);
-  const root = path.resolve(base);
+function safeJoin(base, requested) {
+  const basePath = path.resolve(base);
+  const fullPath = path.resolve(base, requested);
 
   if (
-    full !== root &&
-    !full.startsWith(root + path.sep)
+    fullPath !== basePath &&
+    !fullPath.startsWith(basePath + path.sep)
   ) {
     return null;
   }
 
-  return full;
+  return fullPath;
+}
+
+function sendFile(res, filePath, extraHeaders = {}) {
+  if (!fs.existsSync(filePath)) {
+    res.writeHead(404, {
+      "Content-Type": "text/plain; charset=utf-8"
+    });
+
+    res.end("Not found");
+    return;
+  }
+
+  const type =
+    MIME[path.extname(filePath)] ||
+    "application/octet-stream";
+
+  res.writeHead(200, {
+    "Content-Type": type,
+    ...extraHeaders
+  });
+
+  fs.createReadStream(filePath).pipe(res);
 }
 
 const server = http.createServer((req, res) => {
@@ -82,9 +76,9 @@ const server = http.createServer((req, res) => {
 
     const pathname = decodeURIComponent(url.pathname);
 
-    // -----------------------------
+    // --------------------------------
     // Frontend
-    // -----------------------------
+    // --------------------------------
 
     if (
       pathname === "/" ||
@@ -96,13 +90,9 @@ const server = http.createServer((req, res) => {
       );
     }
 
-    // -----------------------------
-    // UV service worker
-    //
-    // IMPORTANT:
-    // The worker is served from /service/
-    // so it can naturally control /service/.
-    // -----------------------------
+    // --------------------------------
+    // UV service-worker bootstrap
+    // --------------------------------
 
     if (pathname === "/service/sw.js") {
       return sendFile(
@@ -111,13 +101,43 @@ const server = http.createServer((req, res) => {
       );
     }
 
-    // -----------------------------
-    // Ultraviolet files
-    // -----------------------------
+    // --------------------------------
+    // Files imported by /service/sw.js
+    //
+    // sw.js uses relative imports:
+    //   uv.bundle.js
+    //   uv.config.js
+    // --------------------------------
+
+    if (pathname === "/service/uv.bundle.js") {
+      return sendFile(
+        res,
+        path.join(UV_DIR, "uv.bundle.js")
+      );
+    }
+
+    if (pathname === "/service/uv.config.js") {
+      return sendFile(
+        res,
+        path.join(UV_DIR, "uv.config.js")
+      );
+    }
+
+    if (pathname === "/service/uv.sw.js") {
+      return sendFile(
+        res,
+        path.join(UV_DIR, "uv.sw.js")
+      );
+    }
+
+    // --------------------------------
+    // Normal UV files
+    // --------------------------------
 
     if (pathname.startsWith("/uv/")) {
-      const requested = pathname.slice(4);
-      const filePath = safePath(
+      const requested = pathname.slice("/uv/".length);
+
+      const filePath = safeJoin(
         UV_DIR,
         requested
       );
@@ -131,12 +151,14 @@ const server = http.createServer((req, res) => {
       return sendFile(res, filePath);
     }
 
-    // -----------------------------
-    // BareMux files
-    // -----------------------------
+    // --------------------------------
+    // BareMux
+    // --------------------------------
 
     if (pathname.startsWith("/baremux/")) {
-      const requested = pathname.slice(8);
+      const requested = pathname.slice(
+        "/baremux/".length
+      );
 
       const baremuxRoot = path.join(
         NODE_MODULES,
@@ -144,7 +166,7 @@ const server = http.createServer((req, res) => {
         "bare-mux"
       );
 
-      const filePath = safePath(
+      const filePath = safeJoin(
         baremuxRoot,
         requested
       );
@@ -158,12 +180,14 @@ const server = http.createServer((req, res) => {
       return sendFile(res, filePath);
     }
 
-    // -----------------------------
-    // Epoxy transport files
-    // -----------------------------
+    // --------------------------------
+    // Epoxy
+    // --------------------------------
 
     if (pathname.startsWith("/epoxy/")) {
-      const requested = pathname.slice(7);
+      const requested = pathname.slice(
+        "/epoxy/".length
+      );
 
       const epoxyRoot = path.join(
         NODE_MODULES,
@@ -171,7 +195,7 @@ const server = http.createServer((req, res) => {
         "epoxy-transport"
       );
 
-      const filePath = safePath(
+      const filePath = safeJoin(
         epoxyRoot,
         requested
       );
@@ -185,12 +209,12 @@ const server = http.createServer((req, res) => {
       return sendFile(res, filePath);
     }
 
-    // -----------------------------
-    // Everything else
-    // -----------------------------
+    // --------------------------------
+    // Not found
+    // --------------------------------
 
     res.writeHead(404, {
-      "Content-Type": "text/plain; charset=utf-8",
+      "Content-Type": "text/plain; charset=utf-8"
     });
 
     res.end("Not found");
@@ -199,49 +223,40 @@ const server = http.createServer((req, res) => {
     console.error("HTTP error:", error);
 
     res.writeHead(500, {
-      "Content-Type": "text/plain; charset=utf-8",
+      "Content-Type": "text/plain; charset=utf-8"
     });
 
     res.end("Internal server error");
   }
 });
 
-// -----------------------------
+// --------------------------------
 // Wisp WebSocket
-// -----------------------------
+// --------------------------------
 
 server.on("upgrade", (req, socket, head) => {
   try {
     wisp.routeRequest(req, socket, head);
   } catch (error) {
-    console.error("Wisp error:", error);
-
+    console.error("Wisp upgrade error:", error);
     socket.destroy();
   }
 });
 
-// -----------------------------
+// --------------------------------
 // Start
-// -----------------------------
+// --------------------------------
 
 server.listen(
   PORT,
   "0.0.0.0",
   () => {
     console.log("");
-    console.log(
-      "======================================"
-    );
-    console.log(
-      "     Ultraviolet + Wisp Server"
-    );
-    console.log(
-      "======================================"
-    );
+    console.log("======================================");
+    console.log("       Ultraviolet + Wisp");
+    console.log("======================================");
     console.log("");
-    console.log(
-      `Listening on port ${PORT}`
-    );
+    console.log(`Listening on port ${PORT}`);
     console.log("");
   }
 );
