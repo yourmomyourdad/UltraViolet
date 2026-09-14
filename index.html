@@ -272,8 +272,14 @@
   <script src="/uv/uv.config.js"></script>
 
 
+<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+<script>eruda.init();</script>
+
+<script src="/uv/uv.bundle.js"></script>
+<script src="/uv/uv.config.js"></script>
+
 <script type="module">
-  import { BareMuxConnection } from "/baremux/index.js";
+  import { BareMuxConnection } from "@mercuryworkshop/bare-mux";
 
   const form = document.getElementById("form");
   const input = document.getElementById("url");
@@ -313,9 +319,7 @@
       const registration =
         await navigator.serviceWorker.register(
           "/uv/sw.js",
-          {
-            scope: "/service/"
-          }
+          { scope: "/service/" }
         );
 
       console.log("UV registration:", registration);
@@ -326,7 +330,6 @@
       status.textContent = "Ready";
 
       console.log("Ultraviolet initialized!");
-
     } catch (error) {
       console.error(
         "Ultraviolet initialization failed:",
@@ -341,9 +344,7 @@
   function normalize(value) {
     value = value.trim();
 
-    if (!value) {
-      return null;
-    }
+    if (!value) return null;
 
     if (/^https?:\/\//i.test(value)) {
       return value;
@@ -368,9 +369,7 @@
 
     const url = normalize(value);
 
-    if (!url) {
-      return;
-    }
+    if (!url) return;
 
     const proxied =
       __uv$config.prefix +
