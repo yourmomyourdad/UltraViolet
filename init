@@ -24,6 +24,7 @@ cat > dist/uv.config.js <<'EOF'
 /* global Ultraviolet */
 
 self.__uv$config = {
+  bare: "/",
   prefix: "/service/",
   encodeUrl: Ultraviolet.codec.xor.encode,
   decodeUrl: Ultraviolet.codec.xor.decode,
