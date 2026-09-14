@@ -2,39 +2,52 @@
 
 set -e
 
-echo "=== Ultraviolet + Wisp setup ==="
+echo "======================================"
+echo "   Ultraviolet + Wisp Setup"
+echo "======================================"
+echo
 
-# Clone Ultraviolet if it isn't already here
+# -----------------------------
+# 1. Clone Ultraviolet
+# -----------------------------
+
 if [ ! -d "Ultraviolet" ]; then
-    echo "[1/4] Cloning Ultraviolet..."
+    echo "[1/6] Cloning Ultraviolet..."
     git clone https://github.com/titaniumnetwork-dev/Ultraviolet.git
 else
-    echo "[1/4] Ultraviolet already exists."
+    echo "[1/6] Ultraviolet already exists."
 fi
 
-# Install UV dependencies and build it
-echo "[2/4] Installing Ultraviolet..."
+# -----------------------------
+# 2. Build Ultraviolet
+# -----------------------------
+
+echo "[2/6] Installing Ultraviolet dependencies..."
+
 cd Ultraviolet
 npm install
 
-echo "[3/4] Building Ultraviolet..."
+echo "[3/6] Building Ultraviolet..."
 npm run build
 
 cd ..
 
-# Install the root server dependencies
-echo "[4/4] Installing Wisp server..."
+# -----------------------------
+# 3. Install root dependencies
+# -----------------------------
+
+echo "[4/6] Installing server dependencies..."
+
 npm install
 
-echo ""
-echo "=== Setup complete! ==="
-echo ""
-echo "Start the server with:"
-echo "  npm start"
-echo ""
-echo "=== Installing Cloudflare Tunnel ==="
+# -----------------------------
+# 4. Install cloudflared
+# -----------------------------
+
+echo "[5/6] Checking Cloudflare Tunnel..."
 
 if ! command -v cloudflared >/dev/null 2>&1; then
+
     echo "Installing cloudflared..."
 
     curl -L \
@@ -42,29 +55,38 @@ if ! command -v cloudflared >/dev/null 2>&1; then
         https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
 
     chmod +x cloudflared
+
     sudo mv cloudflared /usr/local/bin/cloudflared
 else
     echo "cloudflared already installed."
 fi
 
-echo ""
-echo "=== Creating start script ==="
+# -----------------------------
+# 5. Create startup script
+# -----------------------------
+
+echo "[6/6] Creating startup script..."
 
 cat > start.sh <<'EOF'
 #!/bin/bash
 
 set -e
 
-echo "Starting Ultraviolet + Wisp..."
+echo "======================================"
+echo "   Starting Ultraviolet + Wisp"
+echo "======================================"
+echo
+
 npm start &
 SERVER_PID=$!
 
-echo "Waiting for server..."
 sleep 2
 
-echo ""
-echo "Starting Cloudflare Tunnel..."
-echo ""
+echo
+echo "======================================"
+echo "   Cloudflare Tunnel"
+echo "======================================"
+echo
 
 cloudflared tunnel --url http://localhost:8080
 
@@ -73,9 +95,12 @@ EOF
 
 chmod +x start.sh
 
-echo ""
-echo "=== ALL DONE ==="
-echo ""
-echo "Run everything with:"
-echo "  ./start.sh"
-echo ""
+echo
+echo "======================================"
+echo "Setup complete!"
+echo "======================================"
+echo
+echo "Start everything with:"
+echo
+echo "    ./start.sh"
+echo
