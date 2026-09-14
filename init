@@ -55,8 +55,7 @@ Ultraviolet/node_modules/esbuild/bin/esbuild \
     baremux-entry.js \
     --bundle \
     --format=iife \
-    --platform=browser \
-    --outfile=baremux-client.js
+    --platform=browser 
 
 rm baremux-entry.js
 
