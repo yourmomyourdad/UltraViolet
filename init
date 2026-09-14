@@ -7,81 +7,84 @@ echo "   Ultraviolet + Wisp Setup"
 echo "======================================"
 echo
 
+# --------------------------------------
+# Clone Ultraviolet
+# --------------------------------------
+
 if [ ! -d "Ultraviolet" ]; then
-    echo "[1/5] Cloning Ultraviolet..."
+    echo "[1/6] Cloning Ultraviolet..."
     git clone https://github.com/titaniumnetwork-dev/Ultraviolet.git
 else
-    echo "[1/5] Ultraviolet already exists."
+    echo "[1/6] Ultraviolet already exists."
 fi
 
-echo "[2/5] Building Ultraviolet..."
+# --------------------------------------
+# Build Ultraviolet
+# --------------------------------------
+
+echo "[2/6] Building Ultraviolet..."
 
 cd Ultraviolet
 
 npm install
 npm run build
 
-cat > dist/uv.config.js <<'EOF'
-/* global Ultraviolet */
-
-self.__uv$config = {
-  bare: "/",
-  prefix: "/service/",
-
-  encodeUrl: Ultraviolet.codec.xor.encode,
-  decodeUrl: Ultraviolet.codec.xor.decode,
-
-  handler: "/uv/uv.handler.js",
-  client: "/uv/uv.client.js",
-  bundle: "/uv/uv.bundle.js",
-  config: "/uv/uv.config.js",
-  sw: "/uv/uv.sw.js"
-};
-EOF
-
 cd ..
 
-echo "[3/5] Creating service worker..."
+# --------------------------------------
+# Root dependencies
+# --------------------------------------
 
-cat > service-worker.js <<'EOF'
-importScripts(
-  "/uv/uv.bundle.js",
-  "/uv/uv.config.js",
-  "/uv/uv.sw.js"
-);
+echo "[3/6] Installing application dependencies..."
 
-const uv = new UVServiceWorker();
-
-self.addEventListener("install", () => {
-  self.skipWaiting();
-});
-
-self.addEventListener("activate", event => {
-  event.waitUntil(self.clients.claim());
-});
-
-self.addEventListener("fetch", event => {
-  event.respondWith(
-    uv.fetch(event)
-  );
-});
-EOF
-
-echo "[4/5] Installing application dependencies..."
 npm install
 
-echo "[5/5] Installing Cloudflare Tunnel..."
+# --------------------------------------
+# Bundle BareMux for the browser
+# --------------------------------------
+
+echo "[4/6] Building browser BareMux bundle..."
+
+cat > baremux-entry.js <<'EOF'
+import { BareMuxConnection } from "@mercuryworkshop/bare-mux";
+
+window.BareMuxConnection = BareMuxConnection;
+EOF
+
+node Ultraviolet/node_modules/esbuild/bin/esbuild \
+    baremux-entry.js \
+    --bundle \
+    --format=iife \
+    --platform=browser \
+    --outfile=baremux-client.js
+
+rm baremux-entry.js
+
+# --------------------------------------
+# Cloudflare Tunnel
+# --------------------------------------
+
+echo "[5/6] Installing Cloudflare Tunnel..."
 
 if ! command -v cloudflared >/dev/null 2>&1; then
+
     curl -L \
         --output cloudflared \
         https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
 
     chmod +x cloudflared
+
     sudo mv cloudflared /usr/local/bin/cloudflared
+
 else
     echo "cloudflared already installed."
 fi
+
+# --------------------------------------
+# Start script
+# --------------------------------------
+
+echo "[6/6] Creating start.sh..."
 
 cat > start.sh <<'EOF'
 #!/bin/bash
