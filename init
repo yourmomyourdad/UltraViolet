@@ -20,21 +20,30 @@ cd Ultraviolet
 npm install
 npm run build
 
-cat > dist/uv.config.js <<'EOF'
-/* global Ultraviolet */
+cat > service-worker.js <<'EOF'
+importScripts(
+  "/uv/uv.bundle.js",
+  "/uv/uv.config.js",
+  "/uv/uv.sw.js"
+);
 
-self.__uv$config = {
-  bare: "/",
-  prefix: "/service/",
-  encodeUrl: Ultraviolet.codec.xor.encode,
-  decodeUrl: Ultraviolet.codec.xor.decode,
+const uv = new UVServiceWorker();
 
-  handler: "/uv/uv.handler.js",
-  client: "/uv/uv.client.js",
-  bundle: "/uv/uv.bundle.js",
-  config: "/uv/uv.config.js",
-  sw: "/uv/uv.sw.js"
-};
+self.addEventListener("install", () => {
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", event => {
+  event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener("fetch", event => {
+  event.respondWith(
+    uv.route(event)
+      ? uv.fetch(event)
+      : fetch(event.request)
+  );
+});
 EOF
 
 cd ..
