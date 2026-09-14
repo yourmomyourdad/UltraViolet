@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { server as wisp } from "@mercuryworkshop/wisp-js/server";
 import { baremuxPath } from "@mercuryworkshop/bare-mux/node";
-import { epoxyPath } from "@mercuryworkshop/epoxy-transport/node";
+import { epoxyPath } from "@mercuryworkshop/epoxy-transport";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
