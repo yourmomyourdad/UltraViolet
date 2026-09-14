@@ -91,6 +91,6 @@ echo "======================================"
 echo "Setup complete!"
 echo "======================================"
 echo
-echo "Run:"
-echo "  ./start.sh"
+echo "Starting."
 echo
+./start.sh
