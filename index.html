@@ -287,56 +287,54 @@
 
 
     async function initializeUV() {
+  try {
+    status.textContent = "Initializing Ultraviolet...";
 
-      try {
-
-        status.textContent =
-          "Initializing Ultraviolet...";
-
-        if (!("serviceWorker" in navigator)) {
-          throw new Error(
-            "This browser does not support service workers."
-          );
-        }
-
-        console.log("Registering UV service worker...");
-
-        const registration =
-          await navigator.serviceWorker.register(
-            "/uv/sw.js",
-            {
-              scope: "/service/"
-            }
-          );
-
-        console.log(
-          "UV registration:",
-          registration
-        );
-
-        await navigator.serviceWorker.ready;
-
-        console.log(
-          "UV service worker is ready."
-        );
-
-        initialized = true;
-
-        status.textContent = "Ready";
-
-      } catch (error) {
-
-        console.error(
-          "UV initialization failed:",
-          error
-        );
-
-        status.textContent =
-          "UV failed to initialize.";
-
-      }
-
+    if (!("serviceWorker" in navigator)) {
+      throw new Error("Service workers are not supported.");
     }
+
+    console.log("Registering UV service worker...");
+
+    const registration = await navigator.serviceWorker.register(
+      "/uv/sw.js",
+      {
+        scope: "/service/"
+      }
+    );
+
+    console.log("UV registration:", registration);
+
+    if (!navigator.serviceWorker.controller) {
+      console.log("Waiting for service worker to control the page...");
+      status.textContent = "Reloading Ultraviolet...";
+
+      navigator.serviceWorker.addEventListener(
+        "controllerchange",
+        () => {
+          window.location.reload();
+        },
+        { once: true }
+      );
+
+      return;
+    }
+
+    initialized = true;
+    status.textContent = "Ready";
+
+    console.log("Ultraviolet is ready!");
+
+  } catch (error) {
+    console.error(
+      "UV initialization failed:",
+      error
+    );
+
+    status.textContent =
+      "UV failed to initialize.";
+  }
+}
 
 
     function normalize(value) {
