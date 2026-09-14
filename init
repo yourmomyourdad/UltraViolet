@@ -45,10 +45,22 @@ npm install
 
 echo "[4/6] Building browser BareMux bundle..."
 
-cat > baremux-entry.js <<'EOF'
-import { BareMuxConnection } from "@mercuryworkshop/bare-mux";
+cat > dist/uv.config.js <<'EOF'
+/* global Ultraviolet */
 
-window.BareMuxConnection = BareMuxConnection;
+self.__uv$config = {
+  prefix: "/service/",
+  bare: "/",
+
+  encodeUrl: Ultraviolet.codec.xor.encode,
+  decodeUrl: Ultraviolet.codec.xor.decode,
+
+  handler: "/uv/uv.handler.js",
+  client: "/uv/uv.client.js",
+  bundle: "/uv/uv.bundle.js",
+  config: "/uv/uv.config.js",
+  sw: "/uv/uv.sw.js"
+};
 EOF
 
 Ultraviolet/node_modules/esbuild/bin/esbuild \
