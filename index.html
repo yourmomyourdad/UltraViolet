@@ -199,13 +199,9 @@
     await loadScript("/uv/uv.bundle.js");
     await loadScript("/uv/uv.config.js");
 
-    const registration =
-      await navigator.serviceWorker.register(
-        "/uv/sw.js",
-        {
-          scope: "/service/"
-        }
-      );
+    navigator.serviceWorker.register("/service/sw.js", {
+  scope: "/service/"
+});
 
     await navigator.serviceWorker.ready;
 
