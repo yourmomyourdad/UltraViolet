@@ -2,23 +2,28 @@
 
 set -e
 
-echo "=== UV + Wisp setup ==="
+echo "======================================"
+echo "   Ultraviolet + Wisp Setup"
+echo "======================================"
+echo
 
 if [ ! -d "Ultraviolet" ]; then
-    echo "Cloning Ultraviolet..."
+    echo "[1/5] Cloning Ultraviolet..."
     git clone https://github.com/titaniumnetwork-dev/Ultraviolet.git
+else
+    echo "[1/5] Ultraviolet already exists."
 fi
 
-echo "Building Ultraviolet..."
+echo "[2/5] Building Ultraviolet..."
 cd Ultraviolet
 npm install
 npm run build
 cd ..
 
-echo "Installing application dependencies..."
+echo "[3/5] Installing application dependencies..."
 npm install
 
-echo "Installing cloudflared..."
+echo "[4/5] Installing Cloudflare Tunnel..."
 
 if ! command -v cloudflared >/dev/null 2>&1; then
     curl -L \
@@ -27,10 +32,47 @@ if ! command -v cloudflared >/dev/null 2>&1; then
 
     chmod +x cloudflared
     sudo mv cloudflared /usr/local/bin/cloudflared
+else
+    echo "cloudflared already installed."
 fi
 
+echo "[5/5] Creating start.sh..."
+
+cat > start.sh <<'EOF'
+#!/bin/bash
+
+set -e
+
+echo "======================================"
+echo "   Starting Ultraviolet + Wisp"
+echo "======================================"
 echo
-echo "=== Setup complete ==="
+
+npm start &
+SERVER_PID=$!
+
+sleep 2
+
+echo
+echo "======================================"
+echo "   Cloudflare Tunnel"
+echo "======================================"
+echo
+echo "Your public URL will appear below."
+echo
+
+cloudflared tunnel --url http://localhost:8080
+
+kill $SERVER_PID 2>/dev/null || true
+EOF
+
+chmod +x start.sh
+
+echo
+echo "======================================"
+echo "Setup complete!"
+echo "======================================"
 echo
 echo "Run:"
 echo "  ./start.sh"
+echo
