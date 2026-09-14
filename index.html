@@ -232,10 +232,10 @@
         console.log("Creating BareMux connection...");
 
         // BareMux v2 browser bundle
-        const connection =
-          new BareMux.BareMuxConnection(
-            "/baremux/worker.js"
-          );
+        window.bareMuxConnection =
+  new BareMux.BareMuxConnection(
+    "/baremux/worker.js"
+  );
 
         console.log("BareMux connection created.");
 
@@ -247,14 +247,14 @@
 
         console.log("Setting Epoxy transport...");
 
-        await connection.setTransport(
-          "/epoxy/index.mjs",
-          [
-            {
-              wisp: wisp
-            }
-          ]
-        );
+        await window.bareMuxConnection.setTransport(
+  "/epoxy/index.mjs",
+  [
+    {
+      wisp: wisp
+    }
+  ]
+);
 
         console.log("Epoxy transport initialized.");
 
