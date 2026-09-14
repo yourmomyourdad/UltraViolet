@@ -286,7 +286,7 @@
     let initialized = false;
 
 
-    async function initializeUV() {
+async function initializeUV() {
   try {
     status.textContent = "Initializing Ultraviolet...";
 
@@ -304,38 +304,26 @@
     );
 
     console.log("UV registration:", registration);
+    console.log("Active worker:", registration.active);
 
-    if (!navigator.serviceWorker.controller) {
-      console.log("Waiting for service worker to control the page...");
-      status.textContent = "Reloading Ultraviolet...";
-
-      navigator.serviceWorker.addEventListener(
-        "controllerchange",
-        () => {
-          window.location.reload();
-        },
-        { once: true }
-      );
-
-      return;
+    if (!registration.active) {
+      throw new Error("UV service worker did not become active.");
     }
 
+    // The worker is registered and active.
+    // We do NOT need to wait for controller here.
     initialized = true;
+
     status.textContent = "Ready";
 
-    console.log("Ultraviolet is ready!");
+    console.log("Ultraviolet is initialized.");
 
   } catch (error) {
-    console.error(
-      "UV initialization failed:",
-      error
-    );
+    console.error("UV initialization failed:", error);
 
-    status.textContent =
-      "UV failed to initialize.";
+    status.textContent = "UV failed to initialize.";
   }
 }
-
 
     function normalize(value) {
 
