@@ -8,82 +8,93 @@ echo "======================================"
 echo
 
 # --------------------------------------
-# 1. Install Node.js 24
+# 1. Node 24
 # --------------------------------------
 
-echo "[1/4] Checking Node.js..."
+echo "[1/5] Setting up Node.js 24..."
 
-NODE_MAJOR="$(node -v 2>/dev/null | sed 's/^v//' | cut -d. -f1 || echo 0)"
+if ! command -v node >/dev/null 2>&1 || \
+   [ "$(node -p 'process.versions.node.split(".")[0]')" -lt 24 ]; then
 
-if [ "$NODE_MAJOR" -lt 24 ]; then
     echo "Installing Node.js 24..."
 
     curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
     sudo apt-get install -y nodejs
-else
-    echo "Node.js $(node -v) is already installed."
 fi
 
-echo "Node:"
-node -v
+echo "Node: $(node -v)"
+
+# Stop immediately if Node is still too old.
+NODE_MAJOR="$(node -p 'Number(process.versions.node.split(".")[0])')"
+
+if [ "$NODE_MAJOR" -lt 24 ]; then
+    echo "ERROR: Node 24 was not installed."
+    echo "Current version: $(node -v)"
+    exit 1
+fi
 
 # --------------------------------------
-# 2. Get official Ultraviolet-App source
+# 2. Get official UV-App source
 # --------------------------------------
 
-echo "[2/4] Getting official Ultraviolet-App..."
+echo "[2/5] Syncing official Ultraviolet-App..."
 
-TMP_DIR="$(mktemp -d)"
+TMP="$(mktemp -d)"
 
 git clone --depth 1 \
     https://github.com/titaniumnetwork-dev/Ultraviolet-App.git \
-    "$TMP_DIR/Ultraviolet-App"
+    "$TMP/Ultraviolet-App"
 
-# Official server
+# Official application source
 rm -rf src
-cp -r "$TMP_DIR/Ultraviolet-App/src" .
+cp -r "$TMP/Ultraviolet-App/src" .
 
-# Official public files
-mkdir -p public
+# Official public files, preserving our index.html
+OLD_INDEX=""
 
-# Preserve our custom index.html if it exists
-CUSTOM_INDEX=""
-
-if [ -f "public/index.html" ]; then
-    CUSTOM_INDEX="$(mktemp)"
-    cp public/index.html "$CUSTOM_INDEX"
+if [ -f public/index.html ]; then
+    OLD_INDEX="$(mktemp)"
+    cp public/index.html "$OLD_INDEX"
 fi
 
 rm -rf public
-cp -r "$TMP_DIR/Ultraviolet-App/public" .
+cp -r "$TMP/Ultraviolet-App/public" .
 
-if [ -n "$CUSTOM_INDEX" ]; then
-    cp "$CUSTOM_INDEX" public/index.html
-    rm -f "$CUSTOM_INDEX"
+if [ -n "$OLD_INDEX" ]; then
+    cp "$OLD_INDEX" public/index.html
+    rm -f "$OLD_INDEX"
 fi
 
-# Official package files
-cp "$TMP_DIR/Ultraviolet-App/package.json" .
-cp "$TMP_DIR/Ultraviolet-App/pnpm-lock.yaml" .
+# Official package metadata
+cp "$TMP/Ultraviolet-App/package.json" .
+cp "$TMP/Ultraviolet-App/pnpm-lock.yaml" .
 
-rm -rf "$TMP_DIR"
+rm -rf "$TMP"
 
 # --------------------------------------
-# 3. Install dependencies
+# 3. Clean old dependencies
 # --------------------------------------
 
-echo "[3/4] Installing dependencies..."
+echo "[3/5] Cleaning old dependencies..."
+
+rm -rf node_modules
+
+# --------------------------------------
+# 4. Install with official pnpm
+# --------------------------------------
+
+echo "[4/5] Installing dependencies..."
 
 corepack enable
 corepack prepare pnpm@10.28.0 --activate
 
-pnpm install
+pnpm install --force
 
 # --------------------------------------
-# 4. Cloudflare Tunnel
+# 5. Cloudflare Tunnel
 # --------------------------------------
 
-echo "[4/4] Installing Cloudflare Tunnel..."
+echo "[5/5] Setting up Cloudflare Tunnel..."
 
 if ! command -v cloudflared >/dev/null 2>&1; then
 
@@ -95,13 +106,7 @@ if ! command -v cloudflared >/dev/null 2>&1; then
 
     sudo mv cloudflared /usr/local/bin/cloudflared
 
-else
-    echo "cloudflared already installed."
 fi
-
-# --------------------------------------
-# Startup script
-# --------------------------------------
 
 cat > start.sh <<'EOF'
 #!/bin/bash
@@ -136,8 +141,8 @@ echo "======================================"
 echo "Setup complete!"
 echo "======================================"
 echo
-echo "Node:"
-node -v
+echo "Node: $(node -v)"
+echo "pnpm: $(pnpm -v)"
 echo
 echo "Run:"
 echo "  ./start.sh"
