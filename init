@@ -7,112 +7,39 @@ echo "   Ultraviolet + Wisp Setup"
 echo "======================================"
 echo
 
-# --------------------------------------
-# 1. Clone Ultraviolet
-# --------------------------------------
-
 if [ ! -d "Ultraviolet" ]; then
-    echo "[1/6] Cloning Ultraviolet..."
+    echo "[1/4] Cloning Ultraviolet..."
     git clone https://github.com/titaniumnetwork-dev/Ultraviolet.git
 else
-    echo "[1/6] Ultraviolet already exists."
+    echo "[1/4] Ultraviolet already exists."
 fi
 
-# --------------------------------------
-# 2. Build Ultraviolet
-# --------------------------------------
-
-echo "[2/6] Building Ultraviolet..."
+echo "[2/4] Building Ultraviolet..."
 
 cd Ultraviolet
-
 npm install
 npm run build
-
-cat > dist/uv.config.js <<'EOF'
-/* global Ultraviolet */
-
-self.__uv$config = {
-  prefix: "/service/",
-  bare: "/",
-
-  encodeUrl: Ultraviolet.codec.xor.encode,
-  decodeUrl: Ultraviolet.codec.xor.decode,
-
-  handler: "/uv/uv.handler.js",
-  client: "/uv/uv.client.js",
-  bundle: "/uv/uv.bundle.js",
-  config: "/uv/uv.config.js",
-  sw: "/uv/uv.sw.js"
-};
-EOF
-
 cd ..
 
-# --------------------------------------
-# 3. Install root dependencies
-# --------------------------------------
-
-echo "[3/6] Installing application dependencies..."
+echo "[3/4] Installing application dependencies..."
 
 npm install
 
-# --------------------------------------
-# 4. Build BareMux browser bundle
-# --------------------------------------
-
-echo "[4/6] Building browser BareMux bundle..."
-
-cat > baremux-entry.js <<'EOF'
-import { BareMuxConnection } from "@mercuryworkshop/bare-mux";
-
-window.BareMuxConnection = BareMuxConnection;
-EOF
-
-./Ultraviolet/node_modules/esbuild/bin/esbuild \
-    baremux-entry.js \
-    --bundle \
-    --format=iife \
-    --platform=browser \
-    --outfile=baremux-client.js
-
-rm baremux-entry.js
-
-# --------------------------------------
-# 5. Install Cloudflare Tunnel
-# --------------------------------------
-
-echo "[5/6] Installing Cloudflare Tunnel..."
+echo "[4/4] Installing Cloudflare Tunnel..."
 
 if ! command -v cloudflared >/dev/null 2>&1; then
-
     curl -L \
-        --output cloudflared \
-        https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+      --output cloudflared \
+      https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
 
     chmod +x cloudflared
-
     sudo mv cloudflared /usr/local/bin/cloudflared
-
-else
-    echo "cloudflared already installed."
 fi
-
-# --------------------------------------
-# 6. Create startup script
-# --------------------------------------
-
-echo "[6/6] Creating start.sh..."
 
 cat > start.sh <<'EOF'
 #!/bin/bash
 
 set -e
-
-echo "======================================"
-echo "   Starting Ultraviolet + Wisp"
-echo "======================================"
-echo
 
 npm start &
 SERVER_PID=$!
@@ -139,4 +66,3 @@ echo "======================================"
 echo
 echo "Run:"
 echo "  ./start.sh"
-echo
