@@ -29,7 +29,8 @@ const MIME_TYPES = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
-  ".svg": "image/svg+xml"
+  ".svg": "image/svg+xml",
+  ".ico": "image/x-icon"
 };
 
 function safeJoin(root, requested) {
@@ -77,10 +78,7 @@ const server = http.createServer((req, res) => {
 
     const pathname = decodeURIComponent(url.pathname);
 
-    // -----------------------------
     // Frontend
-    // -----------------------------
-
     if (
       pathname === "/" ||
       pathname === "/index.html"
@@ -91,10 +89,7 @@ const server = http.createServer((req, res) => {
       );
     }
 
-    // -----------------------------
     // Ultraviolet
-    // -----------------------------
-
     if (pathname.startsWith("/uv/")) {
       const requested =
         pathname.slice("/uv/".length);
@@ -123,10 +118,7 @@ const server = http.createServer((req, res) => {
       return serveFile(res, file);
     }
 
-    // -----------------------------
     // BareMux
-    // -----------------------------
-
     if (pathname.startsWith("/baremux/")) {
       const requested =
         pathname.slice("/baremux/".length);
@@ -145,10 +137,7 @@ const server = http.createServer((req, res) => {
       return serveFile(res, file);
     }
 
-    // -----------------------------
     // Epoxy
-    // -----------------------------
-
     if (pathname.startsWith("/epoxy/")) {
       const requested =
         pathname.slice("/epoxy/".length);
@@ -167,10 +156,7 @@ const server = http.createServer((req, res) => {
       return serveFile(res, file);
     }
 
-    // -----------------------------
-    // Not found
-    // -----------------------------
-
+    // Anything else
     res.writeHead(404, {
       "Content-Type": "text/plain; charset=utf-8"
     });
@@ -188,17 +174,13 @@ const server = http.createServer((req, res) => {
   }
 });
 
-// -----------------------------
 // Wisp WebSocket
-// -----------------------------
-
 server.on("upgrade", (req, socket, head) => {
-  if (req.url.endsWith("/wisp/")) {
-    wisp.routeRequest(req, socket, head);
-  } else {
-    socket.end();
-  }
-});
+  try {
+    if (!req.url || !req.url.endsWith("/wisp/")) {
+      socket.destroy();
+      return;
+    }
 
     wisp.routeRequest(
       req,
@@ -221,19 +203,11 @@ server.listen(
   "0.0.0.0",
   () => {
     console.log("");
-    console.log(
-      "======================================"
-    );
-    console.log(
-      "       Ultraviolet + Wisp"
-    );
-    console.log(
-      "======================================"
-    );
+    console.log("======================================");
+    console.log("       Ultraviolet + Wisp");
+    console.log("======================================");
     console.log("");
-    console.log(
-      `Listening on port ${PORT}`
-    );
+    console.log(`Listening on port ${PORT}`);
     console.log("");
   }
 );
