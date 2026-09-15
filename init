@@ -8,30 +8,30 @@ echo "======================================"
 echo
 
 # --------------------------------------
-# 1. Make sure Node 24 is being used
+# 1. Install Node.js 24
 # --------------------------------------
 
-echo "[1/5] Checking Node.js..."
+echo "[1/4] Checking Node.js..."
 
-if ! command -v nvm >/dev/null 2>&1; then
-    export NVM_DIR="$HOME/.nvm"
+NODE_MAJOR="$(node -v 2>/dev/null | sed 's/^v//' | cut -d. -f1 || echo 0)"
 
-    if [ -s "$NVM_DIR/nvm.sh" ]; then
-        . "$NVM_DIR/nvm.sh"
-    fi
+if [ "$NODE_MAJOR" -lt 24 ]; then
+    echo "Installing Node.js 24..."
+
+    curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+else
+    echo "Node.js $(node -v) is already installed."
 fi
-
-nvm install 24
-nvm use 24
 
 echo "Node:"
 node -v
 
 # --------------------------------------
-# 2. Get the official Ultraviolet-App
+# 2. Get official Ultraviolet-App source
 # --------------------------------------
 
-echo "[2/5] Getting official Ultraviolet-App..."
+echo "[2/4] Getting official Ultraviolet-App..."
 
 TMP_DIR="$(mktemp -d)"
 
@@ -39,26 +39,31 @@ git clone --depth 1 \
     https://github.com/titaniumnetwork-dev/Ultraviolet-App.git \
     "$TMP_DIR/Ultraviolet-App"
 
-# Copy the official application source.
+# Official server
 rm -rf src
 cp -r "$TMP_DIR/Ultraviolet-App/src" .
 
-# Copy the official public files,
-# but preserve YOUR index.html.
+# Official public files
 mkdir -p public
 
+# Preserve our custom index.html if it exists
+CUSTOM_INDEX=""
+
 if [ -f "public/index.html" ]; then
-    cp public/index.html "$TMP_DIR/your-index.html"
+    CUSTOM_INDEX="$(mktemp)"
+    cp public/index.html "$CUSTOM_INDEX"
 fi
 
 rm -rf public
 cp -r "$TMP_DIR/Ultraviolet-App/public" .
 
-if [ -f "$TMP_DIR/your-index.html" ]; then
-    cp "$TMP_DIR/your-index.html" public/index.html
+if [ -n "$CUSTOM_INDEX" ]; then
+    cp "$CUSTOM_INDEX" public/index.html
+    rm -f "$CUSTOM_INDEX"
 fi
 
-# Copy the official lockfile.
+# Official package files
+cp "$TMP_DIR/Ultraviolet-App/package.json" .
 cp "$TMP_DIR/Ultraviolet-App/pnpm-lock.yaml" .
 
 rm -rf "$TMP_DIR"
@@ -67,7 +72,7 @@ rm -rf "$TMP_DIR"
 # 3. Install dependencies
 # --------------------------------------
 
-echo "[3/5] Installing dependencies..."
+echo "[3/4] Installing dependencies..."
 
 corepack enable
 corepack prepare pnpm@10.28.0 --activate
@@ -75,10 +80,10 @@ corepack prepare pnpm@10.28.0 --activate
 pnpm install
 
 # --------------------------------------
-# 4. Install Cloudflare Tunnel
+# 4. Cloudflare Tunnel
 # --------------------------------------
 
-echo "[4/5] Installing Cloudflare Tunnel..."
+echo "[4/4] Installing Cloudflare Tunnel..."
 
 if ! command -v cloudflared >/dev/null 2>&1; then
 
@@ -95,10 +100,8 @@ else
 fi
 
 # --------------------------------------
-# 5. Create startup script
+# Startup script
 # --------------------------------------
-
-echo "[5/5] Creating start.sh..."
 
 cat > start.sh <<'EOF'
 #!/bin/bash
