@@ -10,6 +10,8 @@ import { server as wisp } from "@mercuryworkshop/wisp-js/server";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const PORT = Number(process.env.PORT || 8080);
+
 const app = express();
 
 const uvPath = path.join(
@@ -18,22 +20,35 @@ const uvPath = path.join(
   "dist"
 );
 
-// Your files first.
+// Frontend files
 app.use(express.static(__dirname));
 
-// UV vendor files.
-app.use("/uv/", express.static(uvPath));
+// UV files
+app.use(
+  "/uv",
+  express.static(uvPath, {
+    setHeaders(res, filePath) {
+      if (path.basename(filePath) === "sw.js") {
+        res.setHeader(
+          "Service-Worker-Allowed",
+          "/"
+        );
+      }
+    }
+  })
+);
 
-// Epoxy vendor files.
-app.use("/epoxy/", express.static(epoxyPath));
+// BareMux files
+app.use(
+  "/baremux",
+  express.static(baremuxPath)
+);
 
-// BareMux vendor files.
-app.use("/baremux/", express.static(baremuxPath));
-
-// 404.
-app.use((req, res) => {
-  res.status(404).send("Not found");
-});
+// Epoxy files
+app.use(
+  "/epoxy",
+  express.static(epoxyPath)
+);
 
 const server = http.createServer((req, res) => {
   res.setHeader(
@@ -49,17 +64,21 @@ const server = http.createServer((req, res) => {
   app(req, res);
 });
 
+// Wisp
 server.on("upgrade", (req, socket, head) => {
   if (req.url?.endsWith("/wisp/")) {
     wisp.routeRequest(req, socket, head);
-    return;
+  } else {
+    socket.destroy();
   }
-
-  socket.end();
 });
 
-const PORT = Number(process.env.PORT || 8080);
-
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(`Ultraviolet + Wisp listening on ${PORT}`);
-});
+server.listen(
+  PORT,
+  "0.0.0.0",
+  () => {
+    console.log(
+      `Ultraviolet + Wisp listening on ${PORT}`
+    );
+  }
+);
