@@ -1,135 +1,107 @@
 #!/bin/bash
-
 set -e
 
 echo "======================================"
-echo "   Ultraviolet-App Setup"
+echo "   Scramjet-App Setup"
 echo "======================================"
 echo
 
-# --------------------------------------
-# 1. Node 24
-# --------------------------------------
+echo "[1/5] Checking Node.js..."
 
-echo "[1/5] Setting up Node.js 24..."
+NODE_MAJOR="$(node -p 'Number(process.versions.node.split(".")[0])' 2>/dev/null || echo 0)"
 
-if ! command -v node >/dev/null 2>&1 || \
-   [ "$(node -p 'process.versions.node.split(".")[0]')" -lt 24 ]; then
-
-    echo "Installing Node.js 24..."
-
-    curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
-    sudo apt-get install -y nodejs
+if [ "$NODE_MAJOR" -lt 20 ]; then
+    echo "Node 20+ is required."
+    exit 1
 fi
 
 echo "Node: $(node -v)"
 
-# Stop immediately if Node is still too old.
-NODE_MAJOR="$(node -p 'Number(process.versions.node.split(".")[0])')"
-
-if [ "$NODE_MAJOR" -lt 24 ]; then
-    echo "ERROR: Node 24 was not installed."
-    echo "Current version: $(node -v)"
-    exit 1
-fi
-
-# --------------------------------------
-# 2. Get official UV-App source
-# --------------------------------------
-
-echo "[2/5] Syncing official Ultraviolet-App..."
+echo
+echo "[2/5] Syncing official Scramjet-App..."
 
 TMP="$(mktemp -d)"
 
 git clone --depth 1 \
-    https://github.com/titaniumnetwork-dev/Ultraviolet-App.git \
-    "$TMP/Ultraviolet-App"
+    https://github.com/MercuryWorkshop/Scramjet-App.git \
+    "$TMP/Scramjet-App"
 
-# Official application source
-rm -rf src
-cp -r "$TMP/Ultraviolet-App/src" .
-
-# Official public files, preserving our index.html
+# Preserve our custom frontend.
 OLD_INDEX=""
-
 if [ -f public/index.html ]; then
     OLD_INDEX="$(mktemp)"
     cp public/index.html "$OLD_INDEX"
 fi
 
-rm -rf public
-cp -r "$TMP/Ultraviolet-App/public" .
+rm -rf src public package.json pnpm-lock.yaml
+
+cp -r "$TMP/Scramjet-App/src" .
+cp -r "$TMP/Scramjet-App/public" .
+cp "$TMP/Scramjet-App/package.json" .
+cp "$TMP/Scramjet-App/pnpm-lock.yaml" .
 
 if [ -n "$OLD_INDEX" ]; then
     cp "$OLD_INDEX" public/index.html
     rm -f "$OLD_INDEX"
 fi
 
-# Official package metadata
-cp "$TMP/Ultraviolet-App/package.json" .
-cp "$TMP/Ultraviolet-App/pnpm-lock.yaml" .
-
 rm -rf "$TMP"
 
-# --------------------------------------
-# 3. Clean old dependencies
-# --------------------------------------
+echo
+echo "[3/5] Installing dependencies..."
 
-echo "[3/5] Cleaning old dependencies..."
-
-rm -rf node_modules
-
-# --------------------------------------
-# 4. Install with official pnpm
-# --------------------------------------
-
-echo "[4/5] Installing dependencies..."
 corepack enable
-corepack prepare pnpm@10.28.0 --activate
-pnpm install --force
+corepack prepare pnpm@10.18.3 --activate
+pnpm install
 
-echo "[4.5/5] Adding Eruda..."
+echo
+echo "[4/5] Installing Cloudflare Tunnel..."
+
+if ! command -v cloudflared >/dev/null 2>&1; then
+    curl -L \
+      --output cloudflared \
+      https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+
+    chmod +x cloudflared
+    sudo mv cloudflared /usr/local/bin/cloudflared
+fi
+
+echo
+echo "[5/5] Installing Eruda..."
 
 python3 - <<'PY'
 from pathlib import Path
 
-p = Path("public/index.html")
-html = p.read_text()
+path = Path("public/index.html")
+html = path.read_text(encoding="utf-8")
 
-eruda = """
+if "cdn.jsdelivr.net/npm/eruda" not in html:
+    marker = "</head>"
+
+    if marker not in html.lower():
+        raise SystemExit("Could not find </head>")
+
+    pos = html.lower().find(marker)
+
+    eruda = """
 <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
 <script>
   eruda.init();
 </script>
 """
 
-if "cdn.jsdelivr.net/npm/eruda" not in html:
-    html = html.replace("</head>", eruda + "\n</head>")
+    html = html[:pos] + eruda + html[pos:]
+    path.write_text(html, encoding="utf-8")
 
-p.write_text(html)
+print("Eruda: VERIFIED")
 PY
-
-echo "[5/5] Setting up Cloudflare Tunnel..."
-
-if ! command -v cloudflared >/dev/null 2>&1; then
-
-    curl -L \
-        --output cloudflared \
-        https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
-
-    chmod +x cloudflared
-
-    sudo mv cloudflared /usr/local/bin/cloudflared
-
-fi
 
 cat > start.sh <<'EOF'
 #!/bin/bash
-
 set -e
 
 echo "======================================"
-echo "   Starting Ultraviolet-App"
+echo "   Starting Scramjet-App"
 echo "======================================"
 echo
 
@@ -153,12 +125,10 @@ chmod +x start.sh
 
 echo
 echo "======================================"
-echo "Setup complete!"
+echo "   Setup Complete!"
 echo "======================================"
 echo
-echo "Node: $(node -v)"
-echo "pnpm: $(pnpm -v)"
-echo
 echo "Run:"
+echo
 echo "  ./start.sh"
 echo
