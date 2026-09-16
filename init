@@ -84,15 +84,30 @@ rm -rf node_modules
 # --------------------------------------
 
 echo "[4/5] Installing dependencies..."
-
 corepack enable
 corepack prepare pnpm@10.28.0 --activate
-
 pnpm install --force
 
-# --------------------------------------
-# 5. Cloudflare Tunnel
-# --------------------------------------
+echo "[4.5/5] Adding Eruda..."
+
+python3 - <<'PY'
+from pathlib import Path
+
+p = Path("public/index.html")
+html = p.read_text()
+
+eruda = """
+<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+<script>
+  eruda.init();
+</script>
+"""
+
+if "cdn.jsdelivr.net/npm/eruda" not in html:
+    html = html.replace("</head>", eruda + "\n</head>")
+
+p.write_text(html)
+PY
 
 echo "[5/5] Setting up Cloudflare Tunnel..."
 
