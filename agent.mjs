@@ -1,5 +1,5 @@
 const GATEWAY =
-  "wss://YOUR-WEBGATE.workers.dev/agent";
+  "wss://webgate.blackj9898.workers.dev/agent";
 
 const WISP =
   "ws://127.0.0.1:8080/wisp/";
