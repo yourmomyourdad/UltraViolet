@@ -1,4 +1,4 @@
-const GATEWAY = "wss://YOUR-WEBGATE.workers.dev/agent";
+const GATEWAY = "wss://webgate.blackj9898.workers.dev/agent";
 
 function connect() {
   console.log("Connecting to WebGate...");
