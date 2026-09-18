@@ -1,33 +1,82 @@
-const GATEWAY = "wss://webgate.blackj9898.workers.dev/agent";
+const GATEWAY =
+  "wss://YOUR-WEBGATE.workers.dev/agent";
+
+const WISP =
+  "ws://127.0.0.1:8080/wisp/";
+
+let gateway;
+let wisp;
 
 function connect() {
   console.log("Connecting to WebGate...");
 
-  const ws = new WebSocket(GATEWAY);
+  gateway = new WebSocket(GATEWAY);
+  wisp = new WebSocket(WISP);
 
-  ws.onopen = () => {
-    console.log("CONNECTED TO WEBGATE");
+  gateway.binaryType = "arraybuffer";
+  wisp.binaryType = "arraybuffer";
 
-    ws.send(JSON.stringify({
-      type: "agent-hello"
-    }));
+  gateway.onopen = () => {
+    console.log("WebGate connected");
+    tryBridge();
   };
 
-  ws.onmessage = (event) => {
-    console.log("FROM WEBGATE:", event.data);
-
-    // Echo test
-    ws.send(event.data);
+  wisp.onopen = () => {
+    console.log("Local Wisp connected");
+    tryBridge();
   };
 
-  ws.onclose = () => {
-    console.log("Disconnected. Retrying...");
-    setTimeout(connect, 2000);
+  gateway.onmessage = (event) => {
+    if (wisp.readyState === WebSocket.OPEN) {
+      wisp.send(event.data);
+    }
   };
 
-  ws.onerror = (error) => {
-    console.error("WebGate error:", error);
+  wisp.onmessage = (event) => {
+    if (gateway.readyState === WebSocket.OPEN) {
+      gateway.send(event.data);
+    }
   };
+
+  gateway.onclose = () => {
+    console.log("WebGate disconnected");
+    reconnect();
+  };
+
+  wisp.onclose = () => {
+    console.log("Local Wisp disconnected");
+    reconnect();
+  };
+
+  gateway.onerror = (err) => {
+    console.error("WebGate error:", err);
+  };
+
+  wisp.onerror = (err) => {
+    console.error("Wisp error:", err);
+  };
+}
+
+function tryBridge() {
+  if (
+    gateway.readyState === WebSocket.OPEN &&
+    wisp.readyState === WebSocket.OPEN
+  ) {
+    console.log("🔥 WebGate ↔ Wisp bridge ACTIVE");
+  }
+}
+
+let reconnecting = false;
+
+function reconnect() {
+  if (reconnecting) return;
+
+  reconnecting = true;
+
+  setTimeout(() => {
+    reconnecting = false;
+    connect();
+  }, 2000);
 }
 
 connect();
