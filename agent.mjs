@@ -1,5 +1,3 @@
-import WebSocket from "ws";
-
 const GATEWAY = "wss://webgate.blackj9898.workers.dev/";
 
 function connect() {
