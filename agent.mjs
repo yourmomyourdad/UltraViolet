@@ -1,6 +1,6 @@
 import WebSocket from "ws";
 
-const GATEWAY = "wss://YOUR-WEBGATE.workers.dev/agent";
+const GATEWAY = "wss://webgate.blackj9898.workers.dev/";
 
 function connect() {
     console.log("Connecting to WebGate...");
