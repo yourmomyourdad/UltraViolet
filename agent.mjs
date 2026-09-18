@@ -1,82 +1,134 @@
-const GATEWAY =
-  "wss://webgate.blackj9898.workers.dev/agent";
+import wrtc from "@roamhq/wrtc";
 
-const WISP =
-  "ws://127.0.0.1:8080/wisp/";
+const SIGNAL_URL =
+"https://script.google.com/macros/s/AKfycbwffo0OMhpc9XxYtMRrJ2lAz0fIZrmmVqQVw5mNWcs414rCC1fXWsD4cOSV3SvYuJ1m/exec";
+const {
+  RTCPeerConnection,
+  RTCSessionDescription
+} = wrtc;
 
-let gateway;
-let wisp;
+async function getSignal(type) {
+  const response = await fetch(
+    `${SIGNAL_URL}?action=get&type=${type}`
+  );
 
-function connect() {
-  console.log("Connecting to WebGate...");
+  const text = await response.text();
 
-  gateway = new WebSocket(GATEWAY);
-  wisp = new WebSocket(WISP);
-
-  gateway.binaryType = "arraybuffer";
-  wisp.binaryType = "arraybuffer";
-
-  gateway.onopen = () => {
-    console.log("WebGate connected");
-    tryBridge();
-  };
-
-  wisp.onopen = () => {
-    console.log("Local Wisp connected");
-    tryBridge();
-  };
-
-  gateway.onmessage = (event) => {
-    if (wisp.readyState === WebSocket.OPEN) {
-      wisp.send(event.data);
-    }
-  };
-
-  wisp.onmessage = (event) => {
-    if (gateway.readyState === WebSocket.OPEN) {
-      gateway.send(event.data);
-    }
-  };
-
-  gateway.onclose = () => {
-    console.log("WebGate disconnected");
-    reconnect();
-  };
-
-  wisp.onclose = () => {
-    console.log("Local Wisp disconnected");
-    reconnect();
-  };
-
-  gateway.onerror = (err) => {
-    console.error("WebGate error:", err);
-  };
-
-  wisp.onerror = (err) => {
-    console.error("Wisp error:", err);
-  };
+  return text ? JSON.parse(text) : null;
 }
 
-function tryBridge() {
-  if (
-    gateway.readyState === WebSocket.OPEN &&
-    wisp.readyState === WebSocket.OPEN
-  ) {
-    console.log("🔥 WebGate ↔ Wisp bridge ACTIVE");
+async function putSignal(type, data) {
+  await fetch(SIGNAL_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      type,
+      data
+    })
+  });
+}
+
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function main() {
+  console.log("Waiting for browser offer...");
+
+  let offer = null;
+
+  while (!offer) {
+    offer = await getSignal("offer");
+
+    if (!offer) {
+      await wait(1000);
+    }
   }
+
+  console.log("Offer received.");
+
+  const pc = new RTCPeerConnection({
+    iceServers: [
+      {
+        urls: "stun:stun.l.google.com:19302"
+      }
+    ]
+  });
+
+  pc.ondatachannel = event => {
+    const channel = event.channel;
+
+    console.log("🎉 DATA CHANNEL RECEIVED");
+
+    channel.binaryType = "arraybuffer";
+
+    channel.onopen = () => {
+      console.log("🔥 DATA CHANNEL OPEN");
+
+      channel.send("HELLO FROM CODESPACE");
+    };
+
+    channel.onmessage = event => {
+      console.log("FROM CHROMEBOOK:", event.data);
+
+      channel.send(
+        "ECHO: " + event.data
+      );
+    };
+
+    channel.onclose = () => {
+      console.log("DataChannel closed.");
+    };
+  };
+
+  pc.oniceconnectionstatechange = () => {
+    console.log(
+      "ICE:",
+      pc.iceConnectionState
+    );
+  };
+
+  await pc.setRemoteDescription(
+    new RTCSessionDescription(offer)
+  );
+
+  const answer = await pc.createAnswer();
+
+  await pc.setLocalDescription(answer);
+
+  await new Promise(resolve => {
+    if (pc.iceGatheringState === "complete") {
+      resolve();
+      return;
+    }
+
+    const check = () => {
+      if (pc.iceGatheringState === "complete") {
+        pc.removeEventListener(
+          "icegatheringstatechange",
+          check
+        );
+
+        resolve();
+      }
+    };
+
+    pc.addEventListener(
+      "icegatheringstatechange",
+      check
+    );
+  });
+
+  console.log("Sending answer...");
+
+  await putSignal(
+    "answer",
+    pc.localDescription
+  );
+
+  console.log("Answer sent. Waiting for connection...");
 }
 
-let reconnecting = false;
-
-function reconnect() {
-  if (reconnecting) return;
-
-  reconnecting = true;
-
-  setTimeout(() => {
-    reconnecting = false;
-    connect();
-  }, 2000);
-}
-
-connect();
+main().catch(console.error);
