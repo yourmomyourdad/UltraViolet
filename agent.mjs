@@ -1,11 +1,16 @@
 import wrtc from "@roamhq/wrtc";
 
 const SIGNAL_URL =
-"https://script.google.com/macros/s/AKfycbwffo0OMhpc9XxYtMRrJ2lAz0fIZrmmVqQVw5mNWcs414rCC1fXWsD4cOSV3SvYuJ1m/exec";
+  "https://script.google.com/macros/s/AKfycbwffo0OMhpc9XxYtMRrJ2lAz0fIZrmmVqQVw5mNWcs414rCC1fXWsD4cOSV3SvYuJ1m/exec";
+
 const {
   RTCPeerConnection,
   RTCSessionDescription
 } = wrtc;
+
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 async function getSignal(type) {
   const response = await fetch(
@@ -14,11 +19,15 @@ async function getSignal(type) {
 
   const text = await response.text();
 
-  return text ? JSON.parse(text) : null;
+  if (!text) {
+    return null;
+  }
+
+  return JSON.parse(text);
 }
 
 async function putSignal(type, data) {
-  await fetch(SIGNAL_URL, {
+  const response = await fetch(SIGNAL_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -28,10 +37,73 @@ async function putSignal(type, data) {
       data
     })
   });
+
+  if (!response.ok) {
+    throw new Error(`Signal POST failed: ${response.status}`);
+  }
 }
 
-function wait(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+async function waitForIceComplete(pc) {
+  if (pc.iceGatheringState === "complete") {
+    return;
+  }
+
+  await new Promise(resolve => {
+    const check = () => {
+      if (pc.iceGatheringState === "complete") {
+        pc.removeEventListener(
+          "icegatheringstatechange",
+          check
+        );
+        resolve();
+      }
+    };
+
+    pc.addEventListener(
+      "icegatheringstatechange",
+      check
+    );
+  });
+}
+
+function bridgeToWisp(channel) {
+  const wisp = new WebSocket(
+    "ws://127.0.0.1:8080/wisp/"
+  );
+
+  wisp.binaryType = "arraybuffer";
+  channel.binaryType = "arraybuffer";
+
+  wisp.onopen = () => {
+    console.log("🔥 Wisp connected");
+    console.log("🔥 WebRTC ↔ Wisp bridge ACTIVE");
+  };
+
+  // WebRTC → Wisp
+  channel.onmessage = event => {
+    if (wisp.readyState === WebSocket.OPEN) {
+      wisp.send(event.data);
+    }
+  };
+
+  // Wisp → WebRTC
+  wisp.onmessage = event => {
+    if (channel.readyState === "open") {
+      channel.send(event.data);
+    }
+  };
+
+  wisp.onerror = error => {
+    console.error("Wisp error:", error);
+  };
+
+  wisp.onclose = () => {
+    console.log("Wisp closed");
+
+    if (channel.readyState === "open") {
+      channel.close();
+    }
+  };
 }
 
 async function main() {
@@ -47,45 +119,42 @@ async function main() {
     }
   }
 
-  console.log("Offer received.");
+  console.log("✅ Offer received");
 
   const pc = new RTCPeerConnection({
-  iceServers: [
-    {
-      urls: "stun:stun.l.google.com:19302"
-    }
-  ]
-});
+    iceServers: [
+      {
+        urls: "stun:stun.l.google.com:19302"
+      }
+    ]
+  });
 
-pc.ondatachannel = (event) => {
-  const channel = event.channel;
-
-  channel.onopen = () => {
-    console.log("🎉 WebRTC connected");
-    bridgeToWisp(channel);
+  pc.oniceconnectionstatechange = () => {
+    console.log("ICE:", pc.iceConnectionState);
   };
-};
 
+  pc.onconnectionstatechange = () => {
+    console.log("Connection:", pc.connectionState);
+  };
 
+  pc.ondatachannel = event => {
+    const channel = event.channel;
 
-    channel.onmessage = event => {
-      console.log("FROM CHROMEBOOK:", event.data);
+    console.log(
+      "🎉 DataChannel received:",
+      channel.label
+    );
 
-      channel.send(
-        "ECHO: " + event.data
-      );
+    channel.binaryType = "arraybuffer";
+
+    channel.onopen = () => {
+      console.log("🎉 WebRTC connected");
+      bridgeToWisp(channel);
     };
 
     channel.onclose = () => {
-      console.log("DataChannel closed.");
+      console.log("DataChannel closed");
     };
-  };
-
-  pc.oniceconnectionstatechange = () => {
-    console.log(
-      "ICE:",
-      pc.iceConnectionState
-    );
   };
 
   await pc.setRemoteDescription(
@@ -96,28 +165,9 @@ pc.ondatachannel = (event) => {
 
   await pc.setLocalDescription(answer);
 
-  await new Promise(resolve => {
-    if (pc.iceGatheringState === "complete") {
-      resolve();
-      return;
-    }
+  console.log("Gathering ICE...");
 
-    const check = () => {
-      if (pc.iceGatheringState === "complete") {
-        pc.removeEventListener(
-          "icegatheringstatechange",
-          check
-        );
-
-        resolve();
-      }
-    };
-
-    pc.addEventListener(
-      "icegatheringstatechange",
-      check
-    );
-  });
+  await waitForIceComplete(pc);
 
   console.log("Sending answer...");
 
@@ -126,48 +176,10 @@ pc.ondatachannel = (event) => {
     pc.localDescription
   );
 
-  console.log("Answer sent. Waiting for connection...");
+  console.log("✅ Answer sent");
+  console.log("Waiting for WebRTC connection...");
 }
 
-main().catch(console.error);
-function bridgeToWisp(channel) {
-  const wisp = new WebSocket("ws://127.0.0.1:8080/wisp/");
-
-  wisp.binaryType = "arraybuffer";
-  channel.binaryType = "arraybuffer";
-
-  wisp.onopen = () => {
-    console.log("🔥 Wisp connected");
-  };
-
-  // WebRTC → Wisp
-  channel.onmessage = (event) => {
-    if (wisp.readyState === WebSocket.OPEN) {
-      wisp.send(event.data);
-    }
-  };
-
-  // Wisp → WebRTC
-  wisp.onmessage = (event) => {
-    if (channel.readyState === "open") {
-      channel.send(event.data);
-    }
-  };
-
-  wisp.onerror = (e) => {
-    console.error("Wisp error:", e);
-  };
-
-  wisp.onclose = () => {
-    console.log("Wisp closed");
-    channel.close();
-  };
-}
-pc.ondatachannel = (event) => {
-  const channel = event.channel;
-
-  channel.onopen = () => {
-    console.log("🎉 WebRTC connected");
-    bridgeToWisp(channel);
-  };
-};
+main().catch(error => {
+  console.error("FATAL:", error);
+});
