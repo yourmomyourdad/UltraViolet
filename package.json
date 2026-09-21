@@ -1,12 +1,27 @@
 {
-  "name": "ultraviolet",
-  "version": "1.0.0",
-  "private": true,
+  "name": "scramjet-demo",
+  "version": "2.0.0",
+  "description": "Scramjet demo",
   "type": "module",
   "scripts": {
-    "agent": "node agent.mjs"
+    "start": "node src/index.js",
+    "agent": "node agent.mjs",
+    "format": "prettier --write .",
+    "lint": "eslint ./src/"
   },
   "dependencies": {
-    "@roamhq/wrtc": "^0.10.0"
-  }
+    "fastify": "^5.7.4",
+    "@fastify/static": "^9.0.0",
+    "@mercuryworkshop/bare-mux": "^2.1.9",
+    "@mercuryworkshop/libcurl-transport": "^1.5.2",
+    "@mercuryworkshop/scramjet": "https://github.com/MercuryWorkshop/scramjet/releases/download/v1.1.0/mercuryworkshop-scramjet-1.1.0.tgz",
+    "@mercuryworkshop/wisp-js": "^0.4.1",
+    "@roamhq/wrtc": "^0.10.0",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "eslint": "^9.13.0",
+    "prettier": "^3.3.3"
+  },
+  "packageManager": "pnpm@10.18.3"
 }
