@@ -2,62 +2,62 @@
 set -e
 
 echo "======================================"
-echo "   UltraViolet Codespace Setup"
+echo " UltraViolet + WebRTC Setup"
 echo "======================================"
-echo
 
-echo "[1/4] Checking Node.js..."
-
-NODE_MAJOR="$(node -p 'Number(process.versions.node.split(".")[0])' 2>/dev/null || echo 0)"
+NODE_MAJOR="$(node -p 'Number(process.versions.node.split(".")[0])')"
 
 if [ "$NODE_MAJOR" -lt 20 ]; then
-    echo "Node 20+ is required."
-    exit 1
+  echo "Node 20+ required"
+  exit 1
 fi
 
 echo "Node: $(node -v)"
 
 echo
-echo "[2/4] Syncing official Scramjet-App source..."
+echo "[1/4] Syncing Scramjet-App source..."
 
 TMP="$(mktemp -d)"
 
 git clone --depth 1 \
-    https://github.com/MercuryWorkshop/Scramjet-App.git \
-    "$TMP/Scramjet-App"
+  https://github.com/MercuryWorkshop/Scramjet-App.git \
+  "$TMP/Scramjet-App"
 
 # Preserve our custom frontend.
-OLD_INDEX=""
-
 if [ -f public/index.html ]; then
-    OLD_INDEX="$(mktemp)"
-    cp public/index.html "$OLD_INDEX"
+  cp public/index.html "$TMP/custom-index.html"
 fi
 
-# Replace only the official application source.
 rm -rf src public
 
 cp -r "$TMP/Scramjet-App/src" .
 cp -r "$TMP/Scramjet-App/public" .
 
-# Restore our custom frontend.
-if [ -n "$OLD_INDEX" ]; then
-    cp "$OLD_INDEX" public/index.html
-    rm -f "$OLD_INDEX"
+if [ -f "$TMP/custom-index.html" ]; then
+  cp "$TMP/custom-index.html" public/index.html
 fi
+
+# Use the official Scramjet package configuration.
+cp "$TMP/Scramjet-App/package.json" package.json
 
 rm -rf "$TMP"
 
 echo
-echo "[3/4] Installing dependencies..."
+echo "[2/4] Installing dependencies..."
 
 corepack enable
 corepack prepare pnpm@10.18.3 --activate
 
 pnpm install
 
+# Add our WebRTC dependency.
+pnpm add @roamhq/wrtc
+
+# Add our agent command.
+pnpm pkg set scripts.agent="node agent.mjs"
+
 echo
-echo "[4/4] Installing Eruda..."
+echo "[3/4] Installing Eruda..."
 
 python3 - <<'PY'
 from pathlib import Path
@@ -79,43 +79,33 @@ if path.exists():
 </script>
 """
             html = html[:pos] + eruda + html[pos:]
-
-            path.write_text(
-                html,
-                encoding="utf-8"
-            )
+            path.write_text(html, encoding="utf-8")
 
 print("Eruda: VERIFIED")
 PY
+
+echo
+echo "[4/4] Creating start script..."
 
 cat > start.sh <<'EOF'
 #!/bin/bash
 set -e
 
 echo "======================================"
-echo "   Starting Scramjet + WebRTC"
+echo " Starting Scramjet + WebRTC"
 echo "======================================"
-echo
-
-echo "Starting Scramjet/Wisp..."
 
 pnpm start &
 SCRAMJET_PID=$!
 
 sleep 3
 
-echo
-echo "Starting WebRTC agent..."
-
 pnpm run agent &
 AGENT_PID=$!
 
 cleanup() {
-    echo
-    echo "Stopping services..."
-
-    kill "$AGENT_PID" 2>/dev/null || true
-    kill "$SCRAMJET_PID" 2>/dev/null || true
+  kill "$AGENT_PID" 2>/dev/null || true
+  kill "$SCRAMJET_PID" 2>/dev/null || true
 }
 
 trap cleanup EXIT INT TERM
@@ -127,17 +117,9 @@ chmod +x start.sh
 
 echo
 echo "======================================"
-echo "   Setup Complete!"
+echo " Setup complete!"
 echo "======================================"
 echo
 echo "Run:"
-echo
 echo "  ./start.sh"
-echo
-echo "This starts:"
-echo
-echo "  Scramjet/Wisp"
-echo "  WebRTC agent"
-echo
-echo "No cloudflared tunnel is used."
 echo
