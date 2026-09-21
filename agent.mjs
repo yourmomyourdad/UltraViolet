@@ -132,3 +132,44 @@ async function main() {
 }
 
 main().catch(console.error);
+function bridgeToWisp(channel) {
+  const wisp = new WebSocket("ws://127.0.0.1:8080/wisp/");
+
+  wisp.binaryType = "arraybuffer";
+  channel.binaryType = "arraybuffer";
+
+  wisp.onopen = () => {
+    console.log("🔥 Wisp connected");
+  };
+
+  // WebRTC → Wisp
+  channel.onmessage = (event) => {
+    if (wisp.readyState === WebSocket.OPEN) {
+      wisp.send(event.data);
+    }
+  };
+
+  // Wisp → WebRTC
+  wisp.onmessage = (event) => {
+    if (channel.readyState === "open") {
+      channel.send(event.data);
+    }
+  };
+
+  wisp.onerror = (e) => {
+    console.error("Wisp error:", e);
+  };
+
+  wisp.onclose = () => {
+    console.log("Wisp closed");
+    channel.close();
+  };
+}
+pc.ondatachannel = (event) => {
+  const channel = event.channel;
+
+  channel.onopen = () => {
+    console.log("🎉 WebRTC connected");
+    bridgeToWisp(channel);
+  };
+};
