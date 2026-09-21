@@ -50,25 +50,23 @@ async function main() {
   console.log("Offer received.");
 
   const pc = new RTCPeerConnection({
-    iceServers: [
-      {
-        urls: "stun:stun.l.google.com:19302"
-      }
-    ]
-  });
+  iceServers: [
+    {
+      urls: "stun:stun.l.google.com:19302"
+    }
+  ]
+});
 
-  pc.ondatachannel = event => {
-    const channel = event.channel;
+pc.ondatachannel = (event) => {
+  const channel = event.channel;
 
-    console.log("🎉 DATA CHANNEL RECEIVED");
+  channel.onopen = () => {
+    console.log("🎉 WebRTC connected");
+    bridgeToWisp(channel);
+  };
+};
 
-    channel.binaryType = "arraybuffer";
 
-    channel.onopen = () => {
-      console.log("🔥 DATA CHANNEL OPEN");
-
-      channel.send("HELLO FROM CODESPACE");
-    };
 
     channel.onmessage = event => {
       console.log("FROM CHROMEBOOK:", event.data);
