@@ -2,11 +2,11 @@
 set -e
 
 echo "======================================"
-echo "   Scramjet-App Setup"
+echo "   UltraViolet Codespace Setup"
 echo "======================================"
 echo
 
-echo "[1/5] Checking Node.js..."
+echo "[1/4] Checking Node.js..."
 
 NODE_MAJOR="$(node -p 'Number(process.versions.node.split(".")[0])' 2>/dev/null || echo 0)"
 
@@ -18,7 +18,7 @@ fi
 echo "Node: $(node -v)"
 
 echo
-echo "[2/5] Syncing official Scramjet-App..."
+echo "[2/4] Syncing official Scramjet-App source..."
 
 TMP="$(mktemp -d)"
 
@@ -28,18 +28,19 @@ git clone --depth 1 \
 
 # Preserve our custom frontend.
 OLD_INDEX=""
+
 if [ -f public/index.html ]; then
     OLD_INDEX="$(mktemp)"
     cp public/index.html "$OLD_INDEX"
 fi
 
-rm -rf src public package.json pnpm-lock.yaml
+# Replace only the official application source.
+rm -rf src public
 
 cp -r "$TMP/Scramjet-App/src" .
 cp -r "$TMP/Scramjet-App/public" .
-cp "$TMP/Scramjet-App/package.json" .
-cp "$TMP/Scramjet-App/pnpm-lock.yaml" .
 
+# Restore our custom frontend.
 if [ -n "$OLD_INDEX" ]; then
     cp "$OLD_INDEX" public/index.html
     rm -f "$OLD_INDEX"
@@ -48,50 +49,41 @@ fi
 rm -rf "$TMP"
 
 echo
-echo "[3/5] Installing dependencies..."
+echo "[3/4] Installing dependencies..."
 
 corepack enable
 corepack prepare pnpm@10.18.3 --activate
+
 pnpm install
 
 echo
-echo "[4/5] Installing Cloudflare Tunnel..."
-
-if ! command -v cloudflared >/dev/null 2>&1; then
-    curl -L \
-      --output cloudflared \
-      https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
-
-    chmod +x cloudflared
-    sudo mv cloudflared /usr/local/bin/cloudflared
-fi
-
-echo
-echo "[5/5] Installing Eruda..."
+echo "[4/4] Installing Eruda..."
 
 python3 - <<'PY'
 from pathlib import Path
 
 path = Path("public/index.html")
-html = path.read_text(encoding="utf-8")
 
-if "cdn.jsdelivr.net/npm/eruda" not in html:
-    marker = "</head>"
+if path.exists():
+    html = path.read_text(encoding="utf-8")
 
-    if marker not in html.lower():
-        raise SystemExit("Could not find </head>")
+    if "cdn.jsdelivr.net/npm/eruda" not in html:
+        marker = "</head>"
+        pos = html.lower().find(marker)
 
-    pos = html.lower().find(marker)
-
-    eruda = """
+        if pos != -1:
+            eruda = """
 <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
 <script>
   eruda.init();
 </script>
 """
+            html = html[:pos] + eruda + html[pos:]
 
-    html = html[:pos] + eruda + html[pos:]
-    path.write_text(html, encoding="utf-8")
+            path.write_text(
+                html,
+                encoding="utf-8"
+            )
 
 print("Eruda: VERIFIED")
 PY
@@ -101,24 +93,34 @@ cat > start.sh <<'EOF'
 set -e
 
 echo "======================================"
-echo "   Starting Scramjet-App"
+echo "   Starting Scramjet + WebRTC"
 echo "======================================"
 echo
 
-pnpm start &
-SERVER_PID=$!
+echo "Starting Scramjet/Wisp..."
 
-trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+pnpm start &
+SCRAMJET_PID=$!
 
 sleep 3
 
 echo
-echo "======================================"
-echo "   Cloudflare Tunnel"
-echo "======================================"
-echo
+echo "Starting WebRTC agent..."
 
-cloudflared tunnel --url http://localhost:8080
+pnpm run agent &
+AGENT_PID=$!
+
+cleanup() {
+    echo
+    echo "Stopping services..."
+
+    kill "$AGENT_PID" 2>/dev/null || true
+    kill "$SCRAMJET_PID" 2>/dev/null || true
+}
+
+trap cleanup EXIT INT TERM
+
+wait
 EOF
 
 chmod +x start.sh
@@ -131,4 +133,11 @@ echo
 echo "Run:"
 echo
 echo "  ./start.sh"
+echo
+echo "This starts:"
+echo
+echo "  Scramjet/Wisp"
+echo "  WebRTC agent"
+echo
+echo "No cloudflared tunnel is used."
 echo
