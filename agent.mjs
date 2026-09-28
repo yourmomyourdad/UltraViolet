@@ -120,6 +120,13 @@ async function main() {
   }
 
   console.log("✅ Offer received");
+  const sessionId = offer.sessionId;
+
+if (!sessionId) {
+  throw new Error("Offer has no sessionId");
+}
+
+console.log("Session:", sessionId);
   console.log(
   offer.sdp.match(/^a=candidate:.*$/gm)?.join("\n")
   || "NO ICE CANDIDATES"
@@ -161,8 +168,11 @@ async function main() {
   };
 
   await pc.setRemoteDescription(
-    new RTCSessionDescription(offer)
-  );
+  new RTCSessionDescription({
+    type: offer.type,
+    sdp: offer.sdp
+  })
+);
 
   const answer = await pc.createAnswer();
 
@@ -195,10 +205,11 @@ console.log(
 
   console.log("Sending answer...");
 
-  await putSignal(
-    "answer",
-    pc.localDescription
-  );
+  await putSignal("answer", {
+  sessionId,
+  type: pc.localDescription.type,
+  sdp: pc.localDescription.sdp
+});
 
   console.log("✅ Answer sent");
   console.log("Waiting for WebRTC connection...");
