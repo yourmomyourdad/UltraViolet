@@ -170,7 +170,21 @@ async function main() {
 
   console.log("Gathering ICE...");
 
-  await waitForIceComplete(pc);
+  pc.onicecandidate = (event) => {
+  if (event.candidate) {
+    console.log("AGENT CANDIDATE:", event.candidate.candidate);
+  } else {
+    console.log("AGENT ICE GATHERING COMPLETE");
+  }
+};
+
+console.log("Gathering ICE...");
+
+await new Promise(resolve => setTimeout(resolve, 5000));
+
+console.log("=== AGENT SDP ===");
+console.log(pc.localDescription?.sdp);
+  
   console.log("=== AGENT ICE CANDIDATES ===");
 
 console.log(
