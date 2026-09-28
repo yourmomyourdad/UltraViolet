@@ -120,7 +120,10 @@ async function main() {
   }
 
   console.log("✅ Offer received");
-
+  console.log(
+  offer.sdp.match(/^a=candidate:.*$/gm)?.join("\n")
+  || "NO ICE CANDIDATES"
+);
   const pc = new RTCPeerConnection({
     iceServers: [
       {
