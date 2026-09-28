@@ -171,6 +171,13 @@ async function main() {
   console.log("Gathering ICE...");
 
   await waitForIceComplete(pc);
+  console.log("=== AGENT ICE CANDIDATES ===");
+
+console.log(
+  pc.localDescription.sdp
+    .match(/^a=candidate:.*$/gm)
+    ?.join("\n") || "NO AGENT CANDIDATES"
+);
 
   console.log("Sending answer...");
 
