@@ -1,7 +1,7 @@
 import wrtc from "@roamhq/wrtc";
 
 const SIGNAL_URL =
-  "https://script.google.com/macros/s/AKfycbwffo0OMhpc9XxYtMRrJ2lAz0fIZrmmVqQVw5mNWcs414rCC1fXWsD4cOSV3SvYuJ1m/exec";
+  "https://webgatesignal.blackj9898.workers.dev";
 
 const {
   RTCPeerConnection,
@@ -12,34 +12,32 @@ function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function getSignal(type) {
+async function getOffer() {
   const response = await fetch(
-    `${SIGNAL_URL}?action=get&type=${type}`
+    `${SIGNAL_URL}/signal/offer`
   );
 
   const text = await response.text();
 
-  if (!text) {
-    return null;
-  }
-
-  return JSON.parse(text);
+  return text ? JSON.parse(text) : null;
 }
 
-async function putSignal(type, data) {
-  const response = await fetch(SIGNAL_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      type,
-      data
-    })
-  });
+async function putAnswer(sessionId, data) {
+  const response = await fetch(
+    `${SIGNAL_URL}/signal/${sessionId}/answer`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(data)
+    }
+  );
 
   if (!response.ok) {
-    throw new Error(`Signal POST failed: ${response.status}`);
+    throw new Error(
+      `Signal POST failed: ${response.status}`
+    );
   }
 }
 
@@ -112,7 +110,7 @@ async function main() {
   let offer = null;
 
   while (!offer) {
-    offer = await getSignal("offer");
+    offer = await getOffer();
 
     if (!offer) {
       await wait(1000);
@@ -205,7 +203,7 @@ console.log(
 
   console.log("Sending answer...");
 
-  await putSignal("answer", {
+  await putAnswer(sessionId, {
   sessionId,
   type: pc.localDescription.type,
   sdp: pc.localDescription.sdp
