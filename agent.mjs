@@ -67,8 +67,7 @@ async function waitForIceComplete(pc) {
 
 function bridgeToWisp(channel) {
   const wisp = new WebSocket(
-    "ws://127.0.0.1:8080/wisp/",
-    ["wisp"]
+    "ws://127.0.0.1:8080/wisp/"
   );
 
   channel.binaryType = "arraybuffer";
