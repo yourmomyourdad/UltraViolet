@@ -157,10 +157,14 @@ console.log("Session:", sessionId);
     channel.binaryType = "arraybuffer";
 
     channel.onopen = () => {
-      console.log("🎉 WebRTC connected");
-      bridgeToWisp(channel);
-    };
-
+  console.log("🎉 WebRTC connected");
+};
+channel.onmessage = event => {
+  if (event.data === "START_WISP") {
+    console.log("🚀 Starting Wisp bridge...");
+    bridgeToWisp(channel);
+  }
+};
     channel.onclose = () => {
       console.log("DataChannel closed");
     };
