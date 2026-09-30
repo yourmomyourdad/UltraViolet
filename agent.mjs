@@ -1,4 +1,5 @@
 import wrtc from "@roamhq/wrtc";
+import WebSocket from "ws";
 
 const SIGNAL_URL =
   "https://webgatesignal.blackj9898.workers.dev";
@@ -66,16 +67,16 @@ async function waitForIceComplete(pc) {
 
 function bridgeToWisp(channel) {
   const wisp = new WebSocket(
-    "ws://127.0.0.1:8080/wisp/"
+    "ws://127.0.0.1:8080/wisp/",
+    ["wisp"]
   );
 
-  wisp.binaryType = "arraybuffer";
   channel.binaryType = "arraybuffer";
 
-  wisp.onopen = () => {
+  wisp.on("open", () => {
     console.log("🔥 Wisp connected");
     console.log("🔥 WebRTC ↔ Wisp bridge ACTIVE");
-  };
+  });
 
   // WebRTC → Wisp
   channel.onmessage = event => {
@@ -85,23 +86,23 @@ function bridgeToWisp(channel) {
   };
 
   // Wisp → WebRTC
-  wisp.onmessage = event => {
+  wisp.on("message", data => {
     if (channel.readyState === "open") {
-      channel.send(event.data);
+      channel.send(data);
     }
-  };
+  });
 
-  wisp.onerror = error => {
+  wisp.on("error", error => {
     console.error("Wisp error:", error);
-  };
+  });
 
-  wisp.onclose = () => {
+  wisp.on("close", () => {
     console.log("Wisp closed");
 
     if (channel.readyState === "open") {
       channel.close();
     }
-  };
+  });
 }
 
 async function main() {
